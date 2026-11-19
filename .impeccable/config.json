@@ -1,0 +1,17 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "design-system-font",
+        "value": "sc",
+        "files": [
+          "extension/popup.html"
+        ],
+        "createdAt": "2026-11-19T10:27:03.924Z",
+        "reason": "Verified: the detector splits the declared PingFang SC font name; popup.css and DESIGN.md use the same font stack."
+      }
+    ]
+  }
+}

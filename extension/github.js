@@ -8,6 +8,7 @@
     const fixed = [
         '.AppHeader', '.UnderlineNav', '.tabnav-tabs', 'nav[aria-label="Repository"]',
         'nav[aria-label="Repository navigation"]', 'nav[data-testid="repository-navbar"]',
+        'a[data-dd-action-name^="pull_requests.navigation."]',
         '#repository-container-header', 'button', 'summary', '[role="button"]',
         'a.btn', 'a.Button', 'a[href$="/issues/new"]', 'a[href$="/issues/new/choose"]',
         '[role="tab"]', '[role="menuitem"]', '[role="menuitemcheckbox"]',

@@ -11,13 +11,14 @@
     <main>
       <header class="masthead">
         <h1>Yoread</h1>
-        <p>英文 <span aria-hidden="true">→</span><span class="sr-only">译为</span> 简体中文</p>
+        <p class="language">英文 <span aria-hidden="true">→</span><span class="sr-only">译为</span> 简体中文</p>
       </header>
 
       <section class="translation" aria-labelledby="translation-title">
         <h2 id="translation-title">当前网页</h2>
         <p id="page-status" role="status" data-state="idle" tabindex="-1">打开网页后即可手动翻译。</p>
-        <div class="button-row">
+        <progress id="translation-progress" aria-label="正文翻译进度" aria-describedby="page-status" hidden></progress>
+        <div id="page-actions" class="button-row">
           <button type="button" id="translate" class="primary" disabled>翻译此页</button>
           <button type="button" id="restore" disabled>恢复原文</button>
         </div>

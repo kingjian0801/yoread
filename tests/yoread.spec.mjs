@@ -122,6 +122,7 @@ test('preserves links, form values and hidden text, then translates new paragrap
         p.textContent = 'A new paragraph.';
         main.append(p);
     });
+    await expect(popup.locator('#translate')).toHaveText('翻译新增内容');
     await translate(popup, false);
     await expect(page.locator('#dynamic')).toHaveText('译文 · A new paragraph.');
     await state(popup, 'done');
@@ -174,6 +175,37 @@ test('retries only failed batches and restores all applied translations', async 
     await expect(page.locator('#p6')).toHaveText('Paragraph number 6.');
 });
 
+test('recovers malformed batches and counts content below the fold', async ({ browserApp }) => {
+    const { fixture, open, page } = browserApp;
+    const texts = Array.from({ length: 6 }, (_, i) => `Paragraph number ${i}.`);
+    fixture.html = '<main>' + texts.map((text, i) =>
+        `<p id="p${i}"${i === 5 ? ' style="margin-top:1800px"' : ''}>${text}</p>`).join('') + '</main>';
+    let finishLast;
+    fixture.reply = ({ texts: batch }) => {
+        const result = { translations: batch.map(text => '译文 · ' + text) };
+        if (batch.length > 2) return { translations: [] };
+        if (batch[0] === texts[5]) return new Promise(resolve => { finishLast = () => resolve(result); });
+        return result;
+    };
+    const popup = await open();
+    await setKey(popup);
+    await translate(popup);
+    await expect(popup.locator('#page-status')).toContainText('5 / 6 段');
+    await expect(popup.getByRole('progressbar')).toBeVisible();
+    await expect(page.locator('#p5')).toHaveText(texts[5]);
+    await expect.poll(() => Boolean(finishLast)).toBe(true);
+    finishLast();
+    await state(popup, 'done');
+    await expect(popup.locator('#page-status')).toContainText('已翻译 6 段');
+    await expect(page.locator('#p5')).toHaveText('译文 · ' + texts[5]);
+    expect(fixture.requests.map(request => request.texts)).toEqual([
+        texts.slice(0, 5), texts.slice(0, 3), texts.slice(0, 2),
+        texts.slice(2, 3), texts.slice(3, 5), texts.slice(5),
+    ]);
+    await popup.locator('#restore').click();
+    await expect(page.locator('#p5')).toHaveText(texts[5]);
+});
+
 test('handles provider balance, rate limits and timeout without losing the original', async ({ browserApp }) => {
     const { fixture, open, page } = browserApp;
     const popup = await open();
@@ -199,7 +231,7 @@ test('GitHub localization runs locally and restores independently of body transl
         <a data-hovercard-type="user" href="/Code">Code</a></nav>
         <article class="markdown-body">${bodyFixture}<pre><code>const Code = 1;</code></pre></article>
         ${req.url?.includes('/issues/') ? '<span id="route-state" class="State">Open</span>' : ''}
-        ${req.url?.includes('/pull/') ? '<span id="route-state" class="State">Merged</span><table><tr><td class="blob-code">Hidden from translation: source code</td></tr></table>' : ''}`;
+        ${req.url?.includes('/pull/') ? '<span id="route-state" class="State">Merged</span><a id="files" href="/acme/demo/pull/1/files" data-dd-action-name="pull_requests.navigation.files">Files changed</a><table><tr><td class="blob-code">Hidden from translation: source code</td></tr></table>' : ''}`;
     const popup = await open('github.com', '/acme/demo');
     await popup.locator('#github').check();
     await expect(popup.locator('#github-status')).toContainText('已开启');
@@ -228,10 +260,13 @@ test('GitHub localization runs locally and restores independently of body transl
     await page.goto('https://github.com/acme/demo/pull/1');
     await expect(page.locator('#prs')).not.toHaveText('Pull requests');
     await expect(page.locator('#route-state')).not.toHaveText('Merged');
+    await expect(page.locator('#files')).toHaveText('更改的文件');
     const pullPopup = await browserApp.openPopup();
     await translate(pullPopup);
     await state(pullPopup, 'done');
     expect(fixture.requests).toHaveLength(3);
     expect(fixture.requests[2].texts).toEqual(['A quiet page for reading.']);
     await expect(page.locator('.blob-code')).toHaveText('Hidden from translation: source code');
+    await pullPopup.locator('#restore').click();
+    await expect(page.locator('#files')).toHaveText('更改的文件');
 });
