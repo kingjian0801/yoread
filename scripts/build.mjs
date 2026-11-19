@@ -7,7 +7,7 @@ const source = join(root, 'extension');
 const target = join(root, 'dist', 'extension');
 const manifest = JSON.parse(await readFile(join(source, 'manifest.json'), 'utf8'));
 for (const file of [manifest.action.default_popup, manifest.background.service_worker,
-    'provider.js', 'page.js', 'github.js', 'vendor/github/locals.js']) {
+    'provider.js', 'page.js', 'translation-rules.js', 'github.js', 'vendor/github/locals.js']) {
     await readFile(join(source, file));
 }
 await mkdir(join(root, 'dist'), { recursive: true });

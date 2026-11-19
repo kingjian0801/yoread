@@ -18,6 +18,8 @@ Yoread 是桌面 Chrome 网页翻译扩展。使用自己的 DeepSeek API Key �
 
 ```sh
 npm ci
+npm run test:unit
+npm run test:integration
 npm run build
 npx playwright install --no-shell chromium
 npm test
@@ -64,11 +66,11 @@ Matt 上游技能固定于提交 `5863806dd4e15c63174bee4e7515a4256792ecfa`，�
 
 ## CI
 
-[GitHub Actions CI](https://github.com/kingjian0801/yoread/actions/workflows/ci.yml) 在推送到 `main`、创建或更新 PR，以及手动触发时运行 `Repository checks`。
+[GitHub Actions CI](https://github.com/kingjian0801/yoread/actions/workflows/ci.yml) 在推送到 `main`、创建或更新 PR，以及手动触发时运行三组独立检查。单元测试检查分批、漏译检测与 API 响应解析。集成测试用本地模拟 API 验证后台消息、请求和错误。Chromium E2E 构建扩展并验证浏览器操作。`Repository checks` 在三组均通过时才成功。
 
 Kim（`kingjian0801`）和 Coco（`coco413`）从本仓库开发分支提交到 `main` 的非草稿 PR，在当前提交通过 CI 后由 [自动合并工作流](.github/workflows/auto-merge.yml) 合并。GitHub 的 `main` 分支保护仍要求通过 PR 和必需检查。
 
-检查 Matt 工作流、README 本地链接和 Shell 模板语法，再构建扩展并运行 Chromium E2E 测试。通过后，本次构建的试用包可在 Actions 运行页下载。
+浏览器测试任务也检查 Matt 工作流、README 本地链接和 Shell 模板语法。成功后，试用包可在 Actions 运行页下载。
 
 在项目根目录执行相同检查：
 

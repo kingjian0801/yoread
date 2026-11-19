@@ -6,7 +6,9 @@
   "engines": { "node": ">=22" },
   "scripts": {
     "build": "node scripts/build.mjs",
-    "test": "playwright test"
+    "test": "playwright test",
+    "test:unit": "node --test tests/unit/*.test.mjs",
+    "test:integration": "node --test tests/integration/*.test.mjs"
   },
   "devDependencies": {
     "@playwright/test": "1.65.1"
