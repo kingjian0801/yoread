@@ -236,6 +236,7 @@ test('retries copied English next to inline code before reporting completion', a
     await expect(page.locator('#name')).toHaveText('Visual Studio Code');
     expect(fixture.requests.map(request => request.texts)).toEqual([[lead, original, 'Visual Studio Code'], [original]]);
     await popup.locator('#restore').click();
+    await expect(popup.locator('#translate')).toBeFocused();
     await expect(page.locator('#sample')).toHaveText(`${lead} "activeTab" ${original}`);
 });
 

@@ -166,7 +166,7 @@ async function pageAction(type) {
   pageBusy = false;
   applyPageReply(reply);
   if (view.state === 'needs-consent') $('confirm').focus();
-  else if (type === 'page.confirm' || type === 'page.dismiss') {
+  else if (type === 'page.confirm' || type === 'page.dismiss' || type === 'page.restore') {
     const next = !restore.disabled && type === 'page.confirm' ? restore
       : !translate.disabled ? translate : pageStatus;
     next.focus();

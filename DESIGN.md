@@ -34,11 +34,9 @@ typography:
 rounded:
   mark-corner: "2px"
   mark-fold: "4px"
-  control: "8px"
+  control: "12px"
   brand-mark: "10px"
-  mark-corner: "2px"
-  mark-fold: "4px"
-  panel: "12px"
+  panel: "16px"
   pill: "20px"
 spacing:
   row-gap: "8px"
@@ -51,7 +49,7 @@ components:
     textColor: "{colors.surface}"
     rounded: "{rounded.control}"
     padding: "7px 12px"
-    height: "38px"
+    height: "40px"
   button-primary-hover:
     backgroundColor: "{colors.accent-hover}"
   button-primary-active:
@@ -61,7 +59,7 @@ components:
     textColor: "{colors.ink}"
     rounded: "{rounded.control}"
     padding: "7px 12px"
-    height: "38px"
+    height: "40px"
   button-secondary-hover:
     textColor: "{colors.accent}"
   button-secondary-active:
@@ -71,9 +69,9 @@ components:
     textColor: "{colors.ink}"
     rounded: "{rounded.control}"
     padding: "7px 10px"
-    height: "38px"
+    height: "40px"
   button-restore:
-    backgroundColor: transparent
+    backgroundColor: "{colors.panel}"
     textColor: "{colors.ink}"
   language-route:
     textColor: "{colors.muted}"
@@ -123,13 +121,13 @@ A thin rule separates the workspace from settings. The settings area gains a lig
 
 ## Shapes
 
-Use 8px corners on buttons and the password field, 12px on the consent panel, and 20px on the configuration badge and switch track. The masthead mark is a 28px square with 10px corners. Its two outline strokes use 2px corners and 4px folds.
+Use 12px corners on buttons and the password field, 16px on the consent panel, and 20px on the configuration badge and switch track. The masthead mark is a 28px square with 10px corners. Its two outline strokes use 2px corners and 4px folds.
 
 ## Components
 
 ### Actions and status
 
-Pair a filled translation button with a transparent restore button. Main controls are at least 38px high. Connection testing and key clearing use 36px controls. Disabled buttons use muted text. Filled and outlined controls also gain a light gray fill when disabled. The status names progress, success, or a retryable issue. The 6px progress bar appears while translation runs.
+Pair a filled translation button with a softly filled restore button. The restore button uses a transparent background when disabled. Main controls are at least 40px high. Connection testing and key clearing use 36px controls. The status names progress, success, or a retryable issue. The 6px progress bar appears while translation runs. Return keyboard focus to the translation action after restoring the original.
 
 ### Language route and send confirmation
 
@@ -137,4 +135,4 @@ Show the source and destination inline in the masthead, with an arrow between th
 
 ### Settings disclosure and switch
 
-Use a native details disclosure with a right-aligned chevron. Show the API Key configuration state in the disclosure row and open settings initially when the key is missing. Place a labeled password field and the GitHub interface translation switch inside the same disclosure, on separate rows. Focus uses a visible 2px dark orange outline with a 3px offset. The switch transition respects reduced-motion preferences.
+Use a native details disclosure with a right-aligned chevron. Show the API Key configuration state in the disclosure row and open settings initially when the key is missing. Place a labeled password field and the GitHub interface translation switch inside the same disclosure, on separate rows. Focus uses a visible 2px dark orange outline with a 3px offset. Button colors, chevron rotation, and switch movement respect reduced-motion preferences.

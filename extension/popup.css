@@ -14,7 +14,8 @@
   --success-soft: #eaf5ee;
   --danger: #a52b36;
   --inset: 20px;
-  --control: 8px;
+  --control: 12px;
+  --consent-radius: 16px;
   --mark-corner: 2px;
   --mark-fold: 4px;
   font: 14px/1.55 "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
@@ -126,7 +127,7 @@ progress::-webkit-progress-value { background: var(--accent); }
 button, input { font: inherit; }
 
 button {
-  min-height: 38px;
+  min-height: 40px;
   border: 1px solid var(--field-rule);
   border-radius: var(--control);
   padding: 7px 12px;
@@ -134,6 +135,7 @@ button {
   color: var(--ink);
   font-weight: 650;
   cursor: pointer;
+  transition: background-color 140ms ease-out, border-color 140ms ease-out, color 140ms ease-out;
 }
 
 button:not(.primary):hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
@@ -150,10 +152,12 @@ button:focus-visible, input:focus-visible, summary:focus-visible, #page-status:f
 
 .button-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px; }
 #page-actions { grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); }
-#restore { border-color: transparent; background: transparent; }
+#restore { border-color: transparent; background: var(--panel); }
+#restore:hover:not(:disabled) { background: var(--accent-soft); }
+#restore:disabled { background: transparent; }
 .small button { min-height: 36px; font-size: 12px; }
 
-.consent { padding: 12px; border-radius: 12px; background: var(--accent-soft); }
+.consent { padding: 12px; border-radius: var(--consent-radius); background: var(--accent-soft); }
 .consent p { margin: 4px 0 12px; }
 
 .tools { padding: 0 var(--inset); border-top: 1px solid var(--rule); }
@@ -180,6 +184,7 @@ summary::after {
   border-width: 0 1.5px 1.5px 0;
   transform: rotate(-45deg);
   margin-inline: 3px 2px;
+  transition: transform 140ms ease-out;
 }
 
 details[open] summary::after { transform: translateY(-1px) rotate(45deg); }
@@ -199,7 +204,7 @@ form label { display: block; margin-bottom: 4px; font-size: 12px; font-weight: 6
 
 input[type="password"] {
   min-width: 0;
-  min-height: 38px;
+  min-height: 40px;
   flex: 1;
   padding: 7px 10px;
   border: 1px solid var(--field-rule);
@@ -265,5 +270,5 @@ input[role="switch"]:disabled { opacity: .65; cursor: default; }
 
 @media (max-width: 340px) { :root { --inset: 16px; } }
 @media (prefers-reduced-motion: reduce) {
-  input[role="switch"]::before { transition: none; }
+  button, summary::after, input[role="switch"]::before { transition: none; }
 }
