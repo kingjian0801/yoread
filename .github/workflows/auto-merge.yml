@@ -1,0 +1,41 @@
+name: Auto-merge team PRs
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+
+permissions: {}
+
+jobs:
+  auto-merge:
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'pull_request' &&
+      github.event.workflow_run.head_repository.full_name == github.repository
+    runs-on: ubuntu-24.04
+    timeout-minutes: 3
+    permissions:
+      contents: write
+      pull-requests: read
+    steps:
+      - name: Merge the checked head through branch protection
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          CHECKED_BRANCH: ${{ github.event.workflow_run.head_branch }}
+          CHECKED_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          # Use only GitHub API metadata. Do not check out or execute PR code here.
+          prs=$(gh api --method GET "repos/$GH_REPO/pulls" \
+            -f state=open -f base=main -f "head=${GH_REPO%%/*}:$CHECKED_BRANCH")
+          pr=$(jq -r --arg repo "$GH_REPO" --arg sha "$CHECKED_SHA" '
+            .[] | select((.draft | not) and .head.repo.full_name == $repo and .head.sha == $sha
+              and (.user.login == "kingjian0801" or .user.login == "coco413")) | .number
+          ' <<< "$prs")
+          if [[ -z $pr ]]; then
+            echo 'No eligible PR has this head.'
+            exit 0
+          fi
+          gh api --method PUT "repos/$GH_REPO/pulls/$pr/merge" \
+            -f "sha=$CHECKED_SHA" -f merge_method=merge | jq -e '.merged'
