@@ -57,7 +57,7 @@ function pageMessage(state, translated, failed, total, code) {
     case 'error': return errorMessage(code);
     default:
       if (code) return errorMessage(code);
-      return configured ? '翻译当前页面中已加载的可读正文。' : messages['missing-key'];
+      return configured ? '翻译已加载的网页正文。' : messages['missing-key'];
   }
 }
 

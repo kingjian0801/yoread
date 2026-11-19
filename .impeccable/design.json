@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-11-19T19:02:48+08:00",
+  "generatedAt": "2026-11-19T19:11:51+08:00",
   "title": "Design System for Yoread",
   "extensions": {
     "colorMeta": {
@@ -39,7 +39,7 @@
       {
         "name": "state-change",
         "value": "160ms ease-out",
-        "purpose": "Translation progress and switch state."
+        "purpose": "GitHub interface translation switch."
       }
     ],
     "breakpoints": [
@@ -56,15 +56,23 @@
       "refersTo": "button-primary",
       "description": "Filled action for translating or confirming a send.",
       "html": "<button class=\"ds-primary\" type=\"button\">翻译此页</button>",
-      "css": ".ds-primary { min-height: 44px; border: 1px solid var(--field-rule, #808897); border-radius: var(--control, 8px); padding: 7px 12px; background: var(--surface, #fff); color: var(--ink, #20242c); font: 650 14px/1.55 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif; cursor: pointer; } .ds-primary:hover:not(:disabled) { border-color: var(--accent, #c34200); color: var(--accent, #c34200); } .ds-primary:active:not(:disabled) { background: var(--accent-soft, #fff3e9); } .ds-primary:focus-visible { outline: 2px solid var(--accent-active, #872d00); outline-offset: 3px; } .ds-primary:disabled { border-color: var(--rule, #e0e3e9); background: var(--panel, #f6f7f9); color: var(--muted, #59616f); cursor: default; } .ds-primary:not(:disabled) { background: var(--accent, #c34200); border-color: var(--accent, #c34200); color: var(--surface, #fff); } .ds-primary:hover:not(:disabled) { background: var(--accent-hover, #a73600); border-color: var(--accent-hover, #a73600); color: var(--surface, #fff); } .ds-primary:active:not(:disabled) { background: var(--accent-active, #872d00); border-color: var(--accent-active, #872d00); }"
+      "css": ".ds-primary { min-height: 38px; border: 1px solid var(--field-rule, #808897); border-radius: var(--control, 8px); padding: 7px 12px; background: var(--surface, #fff); color: var(--ink, #20242c); font: 650 14px/1.55 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif; cursor: pointer; } .ds-primary:hover:not(:disabled) { border-color: var(--accent, #c34200); color: var(--accent, #c34200); } .ds-primary:active:not(:disabled) { background: var(--accent-soft, #fff3e9); } .ds-primary:focus-visible { outline: 2px solid var(--accent-active, #872d00); outline-offset: 3px; } .ds-primary:disabled { border-color: var(--rule, #e0e3e9); background: var(--panel, #f6f7f9); color: var(--muted, #59616f); cursor: default; } .ds-primary:not(:disabled) { background: var(--accent, #c34200); border-color: var(--accent, #c34200); color: var(--surface, #fff); } .ds-primary:hover:not(:disabled) { background: var(--accent-hover, #a73600); border-color: var(--accent-hover, #a73600); color: var(--surface, #fff); } .ds-primary:active:not(:disabled) { background: var(--accent-active, #872d00); border-color: var(--accent-active, #872d00); }"
     },
     {
       "name": "Secondary Button",
       "kind": "button",
       "refersTo": "button-secondary",
-      "description": "Outlined action for restoring, canceling, or managing the key.",
-      "html": "<button class=\"ds-secondary\" type=\"button\">恢复原文</button>",
-      "css": ".ds-secondary { min-height: 44px; border: 1px solid var(--field-rule, #808897); border-radius: var(--control, 8px); padding: 7px 12px; background: var(--surface, #fff); color: var(--ink, #20242c); font: 650 14px/1.55 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif; cursor: pointer; } .ds-secondary:hover:not(:disabled) { border-color: var(--accent, #c34200); color: var(--accent, #c34200); } .ds-secondary:active:not(:disabled) { background: var(--accent-soft, #fff3e9); } .ds-secondary:focus-visible { outline: 2px solid var(--accent-active, #872d00); outline-offset: 3px; } .ds-secondary:disabled { border-color: var(--rule, #e0e3e9); background: var(--panel, #f6f7f9); color: var(--muted, #59616f); cursor: default; }"
+      "description": "Outlined action for canceling confirmation or managing the key.",
+      "html": "<button class=\"ds-secondary\" type=\"button\">取消</button>",
+      "css": ".ds-secondary { min-height: 38px; border: 1px solid var(--field-rule, #808897); border-radius: var(--control, 8px); padding: 7px 12px; background: var(--surface, #fff); color: var(--ink, #20242c); font: 650 14px/1.55 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif; cursor: pointer; } .ds-secondary:hover:not(:disabled) { border-color: var(--accent, #c34200); color: var(--accent, #c34200); } .ds-secondary:active:not(:disabled) { background: var(--accent-soft, #fff3e9); } .ds-secondary:focus-visible { outline: 2px solid var(--accent-active, #872d00); outline-offset: 3px; } .ds-secondary:disabled { border-color: var(--rule, #e0e3e9); background: var(--panel, #f6f7f9); color: var(--muted, #59616f); cursor: default; }"
+    },
+    {
+      "name": "Restore Button",
+      "kind": "button",
+      "refersTo": "button-restore",
+      "description": "Transparent secondary action that restores the original page text.",
+      "html": "<button class=\"ds-restore\" type=\"button\">恢复原文</button>",
+      "css": ".ds-restore { min-height: 38px; border: 1px solid transparent; border-radius: var(--control, 8px); padding: 7px 12px; background: transparent; color: var(--ink, #20242c); font: 650 14px/1.55 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif; cursor: pointer; } .ds-restore:hover:not(:disabled) { color: var(--accent, #c34200); } .ds-restore:focus-visible { outline: 2px solid var(--accent-active, #872d00); outline-offset: 3px; } .ds-restore:disabled { color: var(--muted, #59616f); cursor: default; }"
     },
     {
       "name": "API Key Field",
@@ -72,15 +80,15 @@
       "refersTo": "input-key",
       "description": "Labeled password field for a user-supplied DeepSeek API Key.",
       "html": "<label class=\"ds-key\">DeepSeek API Key<input type=\"password\" autocomplete=\"off\" placeholder=\"粘贴你的 API Key\"></label>",
-      "css": ".ds-key { display: block; color: var(--ink, #20242c); font: 650 12px/1.55 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif; } .ds-key input { display: block; margin-top: 4px; min-height: 44px; padding: 7px 10px; border: 1px solid var(--field-rule, #808897); border-radius: var(--control, 8px); color: var(--ink, #20242c); caret-color: var(--accent, #c34200); background: var(--surface, #fff); font: 14px/1.55 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif; } .ds-key input::placeholder { color: var(--muted, #59616f); opacity: 1; } .ds-key input:focus-visible { outline: 2px solid var(--accent-active, #872d00); outline-offset: 3px; }"
+      "css": ".ds-key { display: block; color: var(--ink, #20242c); font: 650 12px/1.55 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif; } .ds-key input { display: block; margin-top: 4px; min-height: 38px; padding: 7px 10px; border: 1px solid var(--field-rule, #808897); border-radius: var(--control, 8px); color: var(--ink, #20242c); caret-color: var(--accent, #c34200); background: var(--surface, #fff); font: 14px/1.55 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif; } .ds-key input::placeholder { color: var(--muted, #59616f); opacity: 1; } .ds-key input:focus-visible { outline: 2px solid var(--accent-active, #872d00); outline-offset: 3px; }"
     },
     {
       "name": "Language Route",
       "kind": "custom",
       "refersTo": "language-route",
-      "description": "Read-only source and destination for the current-page translation.",
+      "description": "Read-only source and destination in the popup masthead.",
       "html": "<div class=\"ds-route\" aria-label=\"英文译为简体中文\"><span>英文</span><span class=\"ds-direction\" aria-hidden=\"true\"></span><span>简体中文</span></div>",
-      "css": ".ds-route { display: grid; grid-template-columns: minmax(0, 1fr) 16px minmax(0, 1fr); align-items: center; gap: 8px; padding: 10px 16px; border: 1px solid var(--rule, #e0e3e9); border-radius: 12px; background: var(--panel, #f6f7f9); color: var(--ink, #20242c); font: 650 16px/1.55 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif; text-align: center; } .ds-route > :last-child { color: var(--accent, #c34200); } .ds-direction { position: relative; height: 2px; background: var(--muted, #59616f); } .ds-direction::after { content: \"\"; position: absolute; top: -3px; right: 0; width: 8px; height: 8px; border-top: 2px solid var(--muted, #59616f); border-right: 2px solid var(--muted, #59616f); transform: rotate(45deg); }"
+      "css": ".ds-route { display: flex; align-items: center; gap: 8px; color: var(--muted, #59616f); font: 650 12px/1.55 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif; white-space: nowrap; } .ds-route > :last-child { color: var(--accent, #c34200); } .ds-direction { position: relative; width: 12px; height: 1px; background: var(--muted, #59616f); } .ds-direction::after { content: \"\"; position: absolute; top: -2px; right: 0; width: 5px; height: 5px; border-top: 1px solid var(--muted, #59616f); border-right: 1px solid var(--muted, #59616f); transform: rotate(45deg); }"
     },
     {
       "name": "Send Confirmation",
@@ -88,14 +96,14 @@
       "refersTo": "panel-consent",
       "description": "Inline consent for sending the current page text to DeepSeek.",
       "html": "<section class=\"ds-consent\" aria-labelledby=\"ds-consent-title\"><h3 id=\"ds-consent-title\">确认发送正文</h3><p>将当前页面可翻译的正文发送至 DeepSeek。该确认仅对当前页面有效。</p><div class=\"ds-consent-actions\"><button class=\"ds-confirm\" type=\"button\">确认并翻译</button><button type=\"button\">取消</button></div></section>",
-      "css": ".ds-consent { padding: 12px; border-radius: 12px; background: var(--accent-soft, #fff3e9); color: var(--ink, #20242c); font: 14px/1.55 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif; } .ds-consent h3 { margin: 0; font-size: 14px; } .ds-consent p { margin: 4px 0 12px; } .ds-consent-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; } .ds-consent-actions button { min-height: 44px; border: 1px solid var(--field-rule, #808897); border-radius: var(--control, 8px); padding: 7px 12px; background: var(--surface, #fff); color: var(--ink, #20242c); font: 650 14px/1.55 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif; cursor: pointer; } .ds-consent-actions button:hover:not(:disabled) { border-color: var(--accent, #c34200); color: var(--accent, #c34200); } .ds-consent-actions button:active:not(:disabled) { background: var(--accent-soft, #fff3e9); } .ds-consent-actions button:focus-visible { outline: 2px solid var(--accent-active, #872d00); outline-offset: 3px; } .ds-consent-actions button:disabled { border-color: var(--rule, #e0e3e9); background: var(--panel, #f6f7f9); color: var(--muted, #59616f); cursor: default; } .ds-consent-actions .ds-confirm { background: var(--accent, #c34200); border-color: var(--accent, #c34200); color: var(--surface, #fff); } .ds-consent-actions .ds-confirm:hover:not(:disabled) { background: var(--accent-hover, #a73600); border-color: var(--accent-hover, #a73600); color: var(--surface, #fff); } .ds-consent-actions .ds-confirm:active:not(:disabled) { background: var(--accent-active, #872d00); border-color: var(--accent-active, #872d00); }"
+      "css": ".ds-consent { padding: 12px; border-radius: 12px; background: var(--accent-soft, #fff3e9); color: var(--ink, #20242c); font: 14px/1.55 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif; } .ds-consent h3 { margin: 0; font-size: 14px; } .ds-consent p { margin: 4px 0 12px; } .ds-consent-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; } .ds-consent-actions button { min-height: 38px; border: 1px solid var(--field-rule, #808897); border-radius: var(--control, 8px); padding: 7px 12px; background: var(--surface, #fff); color: var(--ink, #20242c); font: 650 14px/1.55 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif; cursor: pointer; } .ds-consent-actions button:hover:not(:disabled) { border-color: var(--accent, #c34200); color: var(--accent, #c34200); } .ds-consent-actions button:active:not(:disabled) { background: var(--accent-soft, #fff3e9); } .ds-consent-actions button:focus-visible { outline: 2px solid var(--accent-active, #872d00); outline-offset: 3px; } .ds-consent-actions button:disabled { border-color: var(--rule, #e0e3e9); background: var(--panel, #f6f7f9); color: var(--muted, #59616f); cursor: default; } .ds-consent-actions .ds-confirm { background: var(--accent, #c34200); border-color: var(--accent, #c34200); color: var(--surface, #fff); } .ds-consent-actions .ds-confirm:hover:not(:disabled) { background: var(--accent-hover, #a73600); border-color: var(--accent-hover, #a73600); color: var(--surface, #fff); } .ds-consent-actions .ds-confirm:active:not(:disabled) { background: var(--accent-active, #872d00); border-color: var(--accent-active, #872d00); }"
     },
     {
       "name": "Settings Disclosure",
       "kind": "custom",
-      "description": "Native disclosure with a visible key configuration state.",
-      "html": "<details class=\"ds-settings\"><summary><span>DeepSeek 设置</span><span class=\"ds-key-state\" data-configured>已配置</span></summary><p>Key 保存在此浏览器。连接测试使用固定短文本。</p></details>",
-      "css": ".ds-settings { background: var(--panel, #f6f7f9); color: var(--ink, #20242c); font: 14px/1.55 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif; } .ds-settings summary { display: flex; align-items: center; gap: 8px; min-height: 52px; font-weight: 650; list-style: none; cursor: pointer; } .ds-settings summary:hover { color: var(--accent, #c34200); } .ds-settings summary::-webkit-details-marker { display: none; } .ds-settings summary::before { content: \"\"; width: 7px; height: 7px; flex: none; border: solid currentColor; border-width: 0 1.5px 1.5px 0; transform: rotate(-45deg); margin-inline-end: 2px; } .ds-settings[open] summary::before { transform: translateY(-1px) rotate(45deg); } .ds-settings summary:focus-visible { outline: 2px solid var(--accent-active, #872d00); outline-offset: 3px; } .ds-key-state { margin-inline-start: auto; padding: 2px 8px; background: var(--surface, #fff); border-radius: 20px; color: var(--muted, #59616f); font-size: 12px; font-weight: 500; } .ds-key-state[data-configured] { background: var(--success-soft, #eaf5ee); color: var(--success, #176445); } .ds-settings p { color: var(--muted, #59616f); font-size: 12px; margin: 6px 0 10px; }"
+      "description": "Shared disclosure for DeepSeek API Key and GitHub interface translation.",
+      "html": "<details class=\"ds-settings\"><summary><span>设置</span><span class=\"ds-key-state\" data-configured>已配置</span></summary><p>Key 保存在此浏览器。连接测试使用固定短文本。</p></details>",
+      "css": ".ds-settings { color: var(--ink, #20242c); font: 14px/1.55 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif; } .ds-settings summary { display: flex; align-items: center; gap: 8px; min-height: 36px; font-size: 12px; font-weight: 650; list-style: none; cursor: pointer; } .ds-settings summary:hover { color: var(--accent, #c34200); } .ds-settings summary::-webkit-details-marker { display: none; } .ds-settings summary::after { content: \"\"; width: 7px; height: 7px; flex: none; border: solid currentColor; border-width: 0 1.5px 1.5px 0; transform: rotate(-45deg); margin-inline: 3px 2px; } .ds-settings[open] summary::after { transform: translateY(-1px) rotate(45deg); } .ds-settings summary:focus-visible { outline: 2px solid var(--accent-active, #872d00); outline-offset: 3px; } .ds-key-state { margin-inline-start: auto; padding: 2px 8px; border-radius: 20px; color: var(--muted, #59616f); font-size: 12px; font-weight: 500; } .ds-key-state[data-configured] { background: var(--success-soft, #eaf5ee); color: var(--success, #176445); } .ds-settings p { color: var(--muted, #59616f); font-size: 12px; margin: 6px 0 10px; } .ds-settings[open] { background: var(--panel, #f6f7f9); }"
     },
     {
       "name": "GitHub Switch",
@@ -107,6 +115,6 @@
     }
   ],
   "narrative": {
-    "overview": "Yoread is a compact desktop Chrome utility. Alibaba Fusion informs the clear control hierarchy. A white workspace leads with the current-page task, and a light gray settings area groups configuration. Warm orange marks the primary action and the translation destination."
+    "overview": "Yoread is a compact desktop Chrome utility. Alibaba Fusion informs the clear control hierarchy. The white workspace leads with page status and actions. A single disclosure groups DeepSeek and GitHub configuration. Warm orange marks the primary action and the translation destination."
   }
 }

@@ -7,7 +7,7 @@ const lines = requests => requests.flatMap(request => request.texts);
 const bodyFixture = '<main><p id="paragraph">A quiet page for reading.</p></main>';
 
 test('loads the extension, saves, changes, tests and clears a local key', async ({ browserApp }) => {
-    const { open, fixture, page } = browserApp;
+    const { open, openPopup, fixture, page } = browserApp;
     const popup = await open();
     await expect(popup.locator('#translate')).toBeDisabled();
     await setKey(popup, 'bad-key');
@@ -23,9 +23,15 @@ test('loads the extension, saves, changes, tests and clears a local key', async 
     await expect(page.locator('body')).not.toContainText('test-key');
     await popup.reload();
     await expect(popup.locator('#key-state')).toHaveText('已配置');
-    await popup.locator('#key-settings').evaluate(details => { details.open = true; });
-    await popup.locator('#clear-key').click();
-    await expect(popup.locator('#translate')).toBeDisabled();
+    const reopened = await openPopup();
+    await expect(reopened.locator('#key-state')).toHaveText('已配置');
+    await expect(reopened.locator('#key-settings')).not.toHaveAttribute('open', '');
+    await expect(reopened.locator('#github')).toBeHidden();
+    await reopened.locator('summary').focus();
+    await reopened.keyboard.press('Enter');
+    await expect(reopened.locator('#github')).toBeVisible();
+    await reopened.locator('#clear-key').click();
+    await expect(reopened.locator('#translate')).toBeDisabled();
 });
 
 test('requires confirmation per page, including login pages and navigation', async ({ browserApp }) => {
