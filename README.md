@@ -1,5 +1,32 @@
 # yoread
 
+Yoread 是桌面 Chrome 网页翻译扩展。使用自己的 DeepSeek API Key 将当前网页的英文正文译为简体中文，并可恢复原文。GitHub 界面汉化使用本地词库，可独立启停。
+
+## 安装和试用
+
+1. 下载 PR CI 中的 `yoread-chrome-trial` 并解压，找到 `extension` 目录。也可在仓库根目录用 Node.js 22+ 执行 `npm run build` 得到 `dist/extension`。
+2. 在桌面 Chrome 打开 `chrome://extensions`，开启「开发者模式」，选择「加载已解压的扩展程序」，并选中含 `manifest.json` 的目录。
+3. 打开一个普通英文网页，点击工具栏的 Yoread，展开「DeepSeek 设置」并保存自己的 API Key，然后点击「测试连接」。连接测试使用固定短文本。试用模型为 DeepSeek 官方 API 的 `deepseek-flash`。
+4. 点击「翻译此页」。每个页面首次发送正文前都会说明发送范围并等待确认。确认后才能向 DeepSeek 发送正文。同页新加载的内容可再次手动翻译，刷新或导航后重新确认。点击「恢复原文」可撤销通用翻译。
+5. 如需 GitHub 菜单、按钮和状态标签使用中文，打开「GitHub 界面汉化」并允许该站点的访问权限。此开关默认关闭，开启后在本地应用词库。恢复 GitHub 正文原文时，界面汉化仍保留。
+
+首版验收采用 [正式 PRD](.scratch/specs/yoread-mvp-prd.md) 的测试场景。Kim 和 Coco 分别用自己的 Key 在新闻、技术文档、博客、允许发送的非敏感登录页面及 GitHub 上试用。记录候选提交、扩展版本、样本、通过情况和问题。
+
+## 开发验证
+
+运行浏览器测试需要 Node.js 22+ 和命令行 `openssl`。首次在 Linux 安装 Chromium 时，可加 `--with-deps` 安装系统依赖。
+
+```sh
+npm ci
+npm run build
+npx playwright install --no-shell chromium
+npm test
+```
+
+浏览器用例加载实际扩展，使用测试网页和模拟 DeepSeek 响应。安装包中的扩展代码及对应源码按 GPL-3.0 发布，保留项目原有的 [MIT 声明](LICENSE-MIT-ORIGINAL)。GitHub 词库的来源和适配范围见 [上游声明](extension/vendor/github/NOTICE.md)。
+
+## Matt 工作流
+
 本仓库已内置项目级 Matt 工程工作流，供成员使用 Codex 协作开发。
 
 ## 开始使用
@@ -21,7 +48,7 @@
 - 明确的小改动直接实施并做必要验证；较大任务按需要澄清、记录规格、拆分任务及审查。
 - 复杂任务的规格和本地任务格式见 [任务记录约定](docs/agents/issue-tracker.md)。默认不自动创建 GitHub 工单。
 - 业务术语及长期设计决策见 [术语与决策约定](docs/agents/domain.md)，本地问题分流见 [状态约定](docs/agents/triage-labels.md)。
-- 按实际改动运行项目适用的测试、静态检查及构建，并说明验证结果与未覆盖项。当前仓库尚无业务代码；已有仓库检查命令见下方 CI 说明。
+- 按实际改动运行项目适用的测试、静态检查及构建，并说明验证结果与未覆盖项。
 - 提交、推送、PR、合并和部署按具体任务授权执行。
 
 ## 工作流文件
@@ -39,7 +66,7 @@ Matt 上游技能固定于提交 `5863806dd4e15c63174bee4e7515a4256792ecfa`，�
 
 [GitHub Actions CI](https://github.com/kingjian0801/yoread/actions/workflows/ci.yml) 在推送到 `main`、创建或更新 PR，以及手动触发时运行 `Repository checks`。
 
-检查技能目录与版本清单是否一致、技能入口元数据、必要的项目规则及许可证文件、README 本地链接，以及两个 Shell 模板的语法。检查使用 Python 3.13 标准库和 Bash，无需安装第三方 Python 包；Shell 模板只做语法检查。
+检查 Matt 工作流、README 本地链接和 Shell 模板语法，再构建扩展并运行 Chromium E2E 测试。通过后，本次构建的试用包可在 Actions 运行页下载。
 
 在项目根目录执行相同检查：
 
@@ -48,5 +75,3 @@ python3 scripts/check_workflow.py
 bash -n .agents/skills/wizard/template.sh
 bash -n .agents/skills/diagnosing-bugs/scripts/hitl-loop.template.sh
 ```
-
-当前仅配置 CI。后续引入业务代码时，应补充对应的测试和构建步骤；CD 暂不建立。
