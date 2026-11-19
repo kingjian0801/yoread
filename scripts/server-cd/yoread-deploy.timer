@@ -1,0 +1,11 @@
+[Unit]
+Description=Check for new Yoread releases every two minutes
+
+[Timer]
+OnActiveSec=30s
+OnUnitInactiveSec=2min
+AccuracySec=10s
+Unit=yoread-deploy.service
+
+[Install]
+WantedBy=timers.target
