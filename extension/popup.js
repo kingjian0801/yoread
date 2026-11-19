@@ -15,6 +15,7 @@ const messages = {
   timeout: 'DeepSeek 响应超时。请重试。',
   service: 'DeepSeek 服务暂不可用。请稍候再试。',
   response: 'DeepSeek 返回的译文格式不完整。请重试。',
+  untranslated: '仍有英文正文，点击「重试翻译」可补译。',
   network: '无法连接 DeepSeek。请检查网络后重试。',
   'invalid-config': 'DeepSeek 拒绝了请求。请检查设置后重试。',
   unsupported: '当前页面不允许扩展读取。请打开普通网页后再试。',
@@ -56,7 +57,7 @@ function pageMessage(state, translated, failed, total, code) {
     case 'error': return errorMessage(code);
     default:
       if (code) return errorMessage(code);
-      return configured ? '翻译当前页面中已加载的可读正文。' : messages['missing-key'];
+      return configured ? '翻译已加载的网页正文。' : messages['missing-key'];
   }
 }
 
@@ -94,7 +95,9 @@ function feedback(id, text, tone = '') {
 }
 
 function renderSettings() {
-  $('key-state').textContent = configured ? '已配置' : '未配置';
+  const keyState = $('key-state');
+  keyState.textContent = configured ? '已配置' : '未配置';
+  keyState.toggleAttribute('data-configured', configured);
   $('save-key').disabled = settingsBusy || !settingsKnown;
   $('test-key').disabled = settingsBusy || !configured;
   $('clear-key').disabled = settingsBusy || !configured;
@@ -163,7 +166,7 @@ async function pageAction(type) {
   pageBusy = false;
   applyPageReply(reply);
   if (view.state === 'needs-consent') $('confirm').focus();
-  else if (type === 'page.confirm' || type === 'page.dismiss') {
+  else if (type === 'page.confirm' || type === 'page.dismiss' || type === 'page.restore') {
     const next = !restore.disabled && type === 'page.confirm' ? restore
       : !translate.disabled ? translate : pageStatus;
     next.focus();

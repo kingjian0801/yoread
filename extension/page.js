@@ -8,6 +8,7 @@
         '[inert]', '[aria-hidden="true"]', '[translate="no"]', '.notranslate',
     ].join(',');
     const githubCode = '.blob-code,.diff-text-inner,.js-full-logs-container,.cm-scroller,.react-code-text';
+    const clauseWord = /^(?:is|are|was|were|be|will|would|can|could|may|should|must|has|have|had|does|do|did|only|until|if|when|because)$/;
     const translated = new Map();
     let url = location.href;
     let consent = false;
@@ -71,15 +72,19 @@
             if (!node.isConnected || node.data !== value.rendered) translated.delete(node);
         }
         if (!document.body) return [];
+        const article = document.querySelector('main article, [role="main"] article') ??
+            document.querySelector('main, [role="main"], article');
         const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
         const entries = [];
+        const other = [];
         while (walker.nextNode()) {
             const node = walker.currentNode;
             if (!translated.has(node) && /[A-Za-z]{2}/.test(node.data) && visible(node)) {
-                entries.push({ node, original: node.data });
+                const list = article && !article.contains(node) ? other : entries;
+                list.push({ node, original: node.data });
             }
         }
-        return entries;
+        return entries.concat(other);
     }
 
     function splitText(text) {
@@ -123,13 +128,30 @@
     };
     const applicable = ({ node, original }) => node.isConnected && node.data === original && visible(node);
 
+    function containsUntranslatedProse(source, translation) {
+        const original = source.toLowerCase().match(/[a-z]+/g) ?? [];
+        const rendered = translation.toLowerCase().match(/[a-z]+/g) ?? [];
+        if (original.length >= 5 && rendered.length >= 5 &&
+            original.some(word => clauseWord.test(word)) && !/\p{Script=Han}/u.test(translation)) return true;
+
+        // A Chinese prefix alone cannot turn a copied English sentence into a successful translation.
+        const remaining = ` ${rendered.join(' ')} `;
+        const clauseLength = 7;
+        for (let i = 0; i <= original.length - clauseLength; i++) {
+            const phrase = original.slice(i, i + clauseLength);
+            if (phrase.some(word => clauseWord.test(word)) && remaining.includes(` ${phrase.join(' ')} `)) return true;
+        }
+        return false;
+    }
+
     async function run(current) {
         let error;
         let applied = 0;
         const changed = new Set();
-        const splits = [];
+        const followUps = [];
+        const retried = new Set();
         const queue = batches(current.entries);
-        for (let batch = queue.next().value; batch; batch = splits.pop() ?? queue.next().value) {
+        for (let batch = queue.next().value; batch; batch = followUps.pop() ?? queue.next().value) {
             if (!isCurrent(current)) return;
             const ready = batch.filter(({ entry }) => {
                 if (changed.has(entry)) return false;
@@ -153,7 +175,7 @@
                 if (code === 'response' && ready.length > 1) {
                     // A malformed response may affect only one part. Try smaller inputs in order.
                     const middle = Math.ceil(ready.length / 2);
-                    splits.push(ready.slice(middle), ready.slice(0, middle));
+                    followUps.push(ready.slice(middle), ready.slice(0, middle));
                     continue;
                 }
                 if (['unauthorized', 'missing-key', 'balance', 'rate-limit', 'page-changed'].includes(code)) {
@@ -163,9 +185,22 @@
                 error ||= code;
                 continue;
             }
-            ready.forEach(({ part }, i) => {
-                part.result = part.source.replace(part.source.trim(), () => reply.translations[i]);
+            const unfinished = [];
+            ready.forEach((item, i) => {
+                const { part } = item;
+                const translation = reply.translations[i];
+                if (containsUntranslatedProse(part.source, translation)) {
+                    if (retried.has(part)) {
+                        error ||= 'untranslated';
+                    } else {
+                        retried.add(part);
+                        unfinished.push([item]);
+                    }
+                    return;
+                }
+                part.result = part.source.replace(part.source.trim(), () => translation);
             });
+            followUps.push(...unfinished.reverse());
             for (const entry of new Set(ready.map(({ entry }) => entry))) {
                 if (changed.has(entry) || !applicable(entry) || !entry.parts.every(part => part.result !== null)) continue;
                 const rendered = entry.parts.map(part => part.result).join('');
