@@ -127,10 +127,16 @@
         let error;
         let applied = 0;
         const changed = new Set();
-        for (const batch of batches(current.entries)) {
+        const splits = [];
+        const queue = batches(current.entries);
+        for (let batch = queue.next().value; batch; batch = splits.pop() ?? queue.next().value) {
             if (!isCurrent(current)) return;
-            const ready = batch.filter(({ entry }) => !changed.has(entry) && applicable(entry));
-            for (const { entry } of batch) if (!applicable(entry)) changed.add(entry);
+            const ready = batch.filter(({ entry }) => {
+                if (changed.has(entry)) return false;
+                if (applicable(entry)) return true;
+                changed.add(entry);
+                return false;
+            });
             if (!ready.length) continue;
             let reply;
             try {
@@ -143,8 +149,18 @@
             }
             if (!isCurrent(current)) return;
             if (!reply?.ok) {
-                error ||= reply?.code || 'service';
-                if (['unauthorized', 'missing-key', 'balance', 'rate-limit', 'page-changed'].includes(error)) break;
+                const code = reply?.code || 'service';
+                if (code === 'response' && ready.length > 1) {
+                    // A malformed response may affect only one part. Try smaller inputs in order.
+                    const middle = Math.ceil(ready.length / 2);
+                    splits.push(ready.slice(middle), ready.slice(0, middle));
+                    continue;
+                }
+                if (['unauthorized', 'missing-key', 'balance', 'rate-limit', 'page-changed'].includes(code)) {
+                    error = code;
+                    break;
+                }
+                error ||= code;
                 continue;
             }
             ready.forEach(({ part }, i) => {
@@ -157,6 +173,7 @@
                 entry.node.data = rendered;
                 applied++;
             }
+            status = { ...status, translated: translated.size };
         }
         if (!isCurrent(current)) return;
         const failures = current.entries.filter(entry => !changed.has(entry) &&
@@ -176,7 +193,7 @@
         const prior = translated.size;
         job = { entries: entries.map(entry => ({ ...entry, parts: entry.parts || splitText(entry.original) })), prior };
         retry = null;
-        status = { state: 'working', translated: prior };
+        status = { state: 'working', translated: prior, total: prior + entries.length };
         const current = job;
         void run(current).catch(() => {
             if (!isCurrent(current)) return;

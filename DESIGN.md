@@ -17,12 +17,12 @@ colors:
 typography:
   display:
     fontFamily: 'Georgia, "Times New Roman", serif'
-    fontSize: "34px"
+    fontSize: "38px"
     fontWeight: 700
     lineHeight: 1
-    letterSpacing: "-.035em"
+    letterSpacing: "-.03em"
   headline:
-    fontSize: "17px"
+    fontSize: "18px"
     lineHeight: 1.3
   body:
     fontFamily: '"PingFang SC", "Microsoft YaHei", system-ui, sans-serif'
@@ -31,26 +31,26 @@ typography:
   label:
     fontSize: "12px"
 rounded:
-  control: "7px"
-  panel: "8px"
+  control: "8px"
+  panel: "14px"
   switch: "20px"
 spacing:
   row-gap: "8px"
   panel-inset: "12px"
-  popup-inset: "20px"
+  popup-inset: "24px"
 components:
   button-primary:
     backgroundColor: "{colors.teal}"
     textColor: "{colors.white}"
     rounded: "{rounded.control}"
-    padding: "5px 12px"
+    padding: "7px 12px"
   button-primary-hover:
     backgroundColor: "{colors.teal-hover}"
   button-secondary:
     backgroundColor: transparent
     textColor: "{colors.ink}"
     rounded: "{rounded.control}"
-    padding: "5px 12px"
+    padding: "7px 12px"
   button-secondary-hover:
     backgroundColor: "{colors.teal-soft}"
   input-key:
@@ -60,13 +60,13 @@ components:
     padding: "6px 9px"
   panel-consent:
     backgroundColor: "{colors.soft}"
-    rounded: "{rounded.panel}"
+    rounded: "{rounded.control}"
     padding: "{spacing.panel-inset}"
   switch:
     backgroundColor: "{colors.soft}"
     rounded: "{rounded.switch}"
-    width: "38px"
-    height: "22px"
+    width: "44px"
+    height: "26px"
   switch-checked:
     backgroundColor: "{colors.teal}"
 ---
@@ -85,29 +85,29 @@ Use ink for labels and body copy and muted green for hints and configuration sta
 
 ## Typography
 
-Georgia anchors the wordmark at 34px. A system font stack led by PingFang SC and Microsoft YaHei carries the Simplified Chinese UI at 14px. The current-page heading is 17px, and hints, feedback, and setting states are 12px. Controls and disclosure labels use weight 600.
+Georgia anchors the wordmark at 38px. A system font stack led by PingFang SC and Microsoft YaHei carries the Simplified Chinese UI at 14px. The current-page heading is 18px, and hints, feedback, and setting states are 12px. Controls and disclosure labels use weight 600.
 
 ## Layout
 
-The popup is a single column, 360px wide with a viewport cap and 20px of padding. The wordmark and language direction align along their baselines. Current-page status precedes the translate and restore row, followed by consent when required, then settings and the independent GitHub switch. Action pairs share available width and can wrap with an 8px gap. The password field and save button stay on one row.
+The popup is a single column, 460px wide with a viewport cap and 24px of padding. At 340px and below, use 16px outer padding. The header pairs the wordmark with the language direction. In the current-page panel, status and progress precede the translate and restore row. Consent takes the place of that row when required. Settings and the independent GitHub switch follow.
 
 ## Elevation & Depth
 
-Pale fills and one-pixel rules separate sections on a flat surface. The consent panel alone uses a tinted container around a decision and its explanation.
+Pale fills and one-pixel rules separate sections on a flat surface. A lighter panel groups the current page controls. The tinted consent area groups the decision and its explanation.
 
 ## Shapes
 
-Buttons and the password field use 7px corners. The consent panel uses 8px corners. The GitHub switch is a pill with a circular thumb that moves right when checked.
+Buttons, the password field, and the consent area use 8px corners. The GitHub switch has a circular thumb that moves right when checked.
 
 ## Components
 
 ### Actions and status
 
-Use a filled primary action and an outlined secondary action for translating and restoring. Main buttons have a 36px minimum height. The test and clear controls use 12px type and a 31px minimum height. Disabled controls use reduced opacity. Announce change through status text near the action.
+Use a filled primary action and an outlined secondary action for translating and restoring. Main buttons have a 42px minimum height. The test and clear controls use 12px type and a 36px minimum height. A pale fill signals that the primary action is disabled. Announce progress and outcomes through status text near the action.
 
 ### Send confirmation
 
-Place consent directly below the current-page actions. Name the destination and explain that the confirmation applies to the current page. Offer a filled confirm button and an outlined cancel button. When consent opens, focus the confirm button. When it closes, move focus to the available page action or status line.
+Place consent below the current-page status. Name the destination and explain that the confirmation applies to the current page. Offer a filled confirm button and an outlined cancel button. When consent opens, focus the confirm button. When it closes, move focus to the available page action or status line.
 
 ### Settings disclosure and switch
 

@@ -45,12 +45,12 @@ async function send(type, fields = {}) {
   }
 }
 
-function pageMessage(state, translated, failed, code) {
+function pageMessage(state, translated, failed, total, code) {
   switch (state) {
     case 'needs-consent': return '确认后才会发送本页正文。';
-    case 'working': return '正在翻译，可随时恢复原文。';
-    case 'done': return translated ? `已翻译 ${translated} 段，可随时恢复原文。` : '已翻译，可随时恢复原文。';
-    case 'partial': return `部分完成，${failed || '有'}段待重试。 ${code ? errorMessage(code) : ''}`.trim();
+    case 'working': return total ? `正在翻译 · ${translated} / ${total} 段` : '正在翻译，可随时恢复原文。';
+    case 'done': return `已翻译 ${translated} 段。滚动加载新内容后可再次翻译。`;
+    case 'partial': return `已翻译 ${translated} 段，${failed} 段待重试。 ${code ? errorMessage(code) : ''}`.trim();
     case 'restored': return '已恢复原文。';
     case 'empty': return '当前没有待翻译的新正文。';
     case 'error': return errorMessage(code);
@@ -61,17 +61,26 @@ function pageMessage(state, translated, failed, code) {
 }
 
 function renderPage() {
-  const { state, translated, failed, error, code } = view;
+  const { state, translated = 0, failed, total, error, code } = view;
   const awaitingConsent = state === 'needs-consent';
   const working = state === 'working';
   const problem = state === 'error' || state === 'partial';
   const blockedPage = code === 'unsupported' || code === 'unsupported-page';
-  pageStatus.textContent = pageMessage(state, translated, failed, error ?? code);
+  const message = pageMessage(state, translated, failed, total, error ?? code);
+  if (pageStatus.textContent !== message) pageStatus.textContent = message;
   pageStatus.dataset.state = state;
   pageStatus.dataset.tone = problem ? 'error' : state === 'done' || state === 'restored' ? 'success' : '';
-  translate.textContent = problem && !blockedPage ? '重试翻译' : '翻译此页';
+  translate.textContent = working ? '翻译中…' : problem && !blockedPage ? '重试翻译'
+    : translated > 0 ? '翻译新增内容' : '翻译此页';
   translate.disabled = !configured || tabId == null || pageBusy || awaitingConsent || working || blockedPage;
   restore.disabled = pageBusy || !(working || state === 'done' || state === 'partial' || translated > 0);
+  const progress = $('translation-progress');
+  progress.hidden = !(working && total);
+  if (!progress.hidden) {
+    progress.max = total;
+    progress.value = translated;
+  }
+  $('page-actions').hidden = awaitingConsent;
   consent.hidden = !awaitingConsent;
   $('confirm').disabled = pageBusy;
   $('dismiss').disabled = pageBusy;
