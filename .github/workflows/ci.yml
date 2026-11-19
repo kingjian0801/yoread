@@ -15,8 +15,34 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  repository-checks:
-    name: Repository checks
+  unit-tests:
+    name: Unit tests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '24'
+      - run: npm run test:unit
+
+  integration-tests:
+    name: Integration tests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '24'
+      - run: npm run test:integration
+
+  browser-e2e:
+    name: Browser E2E
     runs-on: ubuntu-24.04
     timeout-minutes: 12
     steps:
@@ -57,3 +83,22 @@ jobs:
             dist/extension/
             dist/yoread-source.zip
           if-no-files-found: error
+
+  repository-checks:
+    name: Repository checks
+    needs: [unit-tests, integration-tests, browser-e2e]
+    if: ${{ always() }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 2
+    permissions: {}
+    steps:
+      - name: Require successful results from all three suites
+        env:
+          UNIT_RESULT: ${{ needs.unit-tests.result }}
+          INTEGRATION_RESULT: ${{ needs.integration-tests.result }}
+          BROWSER_RESULT: ${{ needs.browser-e2e.result }}
+        run: |
+          printf 'Unit: %s\nIntegration: %s\nBrowser E2E: %s\n' "$UNIT_RESULT" "$INTEGRATION_RESULT" "$BROWSER_RESULT"
+          test "$UNIT_RESULT" = success &&
+            test "$INTEGRATION_RESULT" = success &&
+            test "$BROWSER_RESULT" = success

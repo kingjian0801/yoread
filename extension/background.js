@@ -78,7 +78,7 @@ async function pageAction(message) {
     if (!Number.isInteger(tabId)) return restricted();
     try {
         const [frame] = await chrome.scripting.executeScript({
-            target: { tabId }, files: ['page.js'],
+            target: { tabId }, files: ['translation-rules.js', 'page.js'],
         });
         if (!frame?.documentId) return restricted();
         if (type === 'page.confirm' && frame.documentId !== documentId) {

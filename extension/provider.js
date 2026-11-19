@@ -15,6 +15,22 @@ function problem(code) {
   return Object.assign(new Error(code), { code });
 }
 
+export function providerErrorCode(status) {
+  return STATUS_CODES.get(status) ?? 'service';
+}
+
+export function parseTranslations(result, expectedCount) {
+  const choice = result?.choices?.[0];
+  if (!choice || choice.finish_reason === 'length') throw problem('response');
+  const { translations } = JSON.parse(choice.message?.content);
+  if (!Array.isArray(translations)
+    || translations.length !== expectedCount
+    || translations.some(text => typeof text !== 'string' || !text.trim())) {
+    throw problem('response');
+  }
+  return translations;
+}
+
 async function request(key, texts) {
   if (typeof key !== 'string' || !key.trim()) throw problem('missing-key');
   const signal = AbortSignal.timeout(REQUEST_TIMEOUT);
@@ -47,20 +63,11 @@ async function request(key, texts) {
   }
 
   if (!response.ok) {
-    throw problem(STATUS_CODES.get(response.status) ?? 'service');
+    throw problem(providerErrorCode(response.status));
   }
 
   try {
-    const result = await response.json();
-    const choice = result.choices?.[0];
-    if (!choice || choice.finish_reason === 'length') throw problem('response');
-    const { translations } = JSON.parse(choice.message?.content);
-    if (!Array.isArray(translations)
-      || translations.length !== texts.length
-      || translations.some(text => typeof text !== 'string' || !text.trim())) {
-      throw problem('response');
-    }
-    return translations;
+    return parseTranslations(await response.json(), texts.length);
   } catch {
     throw problem(signal.aborted ? 'timeout' : 'response');
   }
