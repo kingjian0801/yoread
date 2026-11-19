@@ -23,18 +23,23 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
-          CHECKED_BRANCH: ${{ github.event.workflow_run.head_branch }}
           CHECKED_SHA: ${{ github.event.workflow_run.head_sha }}
         run: |
           # Use only GitHub API metadata. Do not check out or execute PR code here.
-          prs=$(gh api --method GET "repos/$GH_REPO/pulls" \
-            -f state=open -f base=main -f "head=${GH_REPO%%/*}:$CHECKED_BRANCH")
-          pr=$(jq -r --arg repo "$GH_REPO" --arg sha "$CHECKED_SHA" '
-            .[] | select((.draft | not) and .head.repo.full_name == $repo and .head.sha == $sha
-              and (.user.login == "kingjian0801" or .user.login == "coco413")) | .number
-          ' <<< "$prs")
-          if [[ -z $pr ]]; then
-            echo 'No eligible PR has this head.'
+          pr=$(jq -r --arg sha "$CHECKED_SHA" '
+            .workflow_run.pull_requests[] | select(.base.ref == "main" and .head.sha == $sha) | .number
+          ' "$GITHUB_EVENT_PATH")
+          if [[ ! $pr =~ ^[0-9]+$ ]]; then
+            echo 'No single PR to main was associated with this run.'
+            exit 0
+          fi
+          current=$(gh api "repos/$GH_REPO/pulls/$pr")
+          if ! jq -e --arg repo "$GH_REPO" --arg sha "$CHECKED_SHA" '
+            .state == "open" and (.draft | not) and .base.ref == "main"
+            and .head.repo.full_name == $repo and .head.sha == $sha
+            and (.user.login == "kingjian0801" or .user.login == "coco413")
+          ' <<< "$current" >/dev/null; then
+            echo 'The PR is no longer eligible to merge.'
             exit 0
           fi
           gh api --method PUT "repos/$GH_REPO/pulls/$pr/merge" \
