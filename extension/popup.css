@@ -1,10 +1,10 @@
 :root {
   color-scheme: light;
-  --paper: #fbf7ee;
-  --soft: #f1ebde;
+  --paper: #f3f8f6;
+  --soft: #e4efe9;
   --ink: #1b2825;
-  --muted: #535d53;
-  --rule: #d5caba;
+  --muted: #455c53;
+  --rule: #b8cbc2;
   --teal: #135f53;
   --teal-hover: #0d4c42;
   --teal-soft: #e7efe7;
@@ -127,7 +127,7 @@ input[type="password"] {
   border-radius: 7px;
   color: var(--ink);
   caret-color: var(--teal);
-  background: #fffdf8;
+  background: #fcfffd;
 }
 
 input::placeholder { color: var(--muted); opacity: 1; }
