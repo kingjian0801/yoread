@@ -77,3 +77,16 @@ python3 scripts/check_workflow.py
 bash -n .agents/skills/wizard/template.sh
 bash -n .agents/skills/diagnosing-bugs/scripts/hitl-loop.template.sh
 ```
+
+## 服务器部署
+
+服务器使用 systemd 每两分钟检查受保护的 `main`。通过 PR 和 CI 门禁的提交合并后，服务器自行拉取源码，生成对应源码压缩包和 Chrome 试用包。发布完成后，`current` 切换到该提交的版本目录。
+
+首次在服务器上安装时，以 root 从仓库根目录运行下列命令。服务器需要 Git、Python 3.9+ 和 systemd。
+
+```sh
+bash scripts/server-cd/install.sh
+```
+
+- 扩展目录为 `/root/kim_workspace/yoread/current/extension`，同目录下有 `yoread-chrome-trial.zip`、对应源码和提交记录。
+- 用 `systemctl list-timers yoread-deploy.timer` 查看下次检查时间。用 `journalctl -u yoread-deploy.service -n 30 --no-pager` 查看部署日志。
