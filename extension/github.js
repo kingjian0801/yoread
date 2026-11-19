@@ -9,6 +9,7 @@
         '.AppHeader', '.UnderlineNav', '.tabnav-tabs', 'nav[aria-label="Repository"]',
         'nav[aria-label="Repository navigation"]', 'nav[data-testid="repository-navbar"]',
         '#repository-container-header', 'button', 'summary', '[role="button"]',
+        'a.btn', 'a.Button', 'a[href$="/issues/new"]', 'a[href$="/issues/new/choose"]',
         '[role="tab"]', '[role="menuitem"]', '[role="menuitemcheckbox"]',
         '.State', '.StateLabel', '[data-testid="issue-state-badge"]',
         '[data-testid="state-label"]', '[class*="StateLabel"]',
@@ -20,6 +21,7 @@
     ].join(',');
     const identifiers = [
         '.AppHeader-context', '.branch-name', '[class*="branchName"]',
+        '.commit-ref', '[class*="CommitRef"]',
         '[data-testid*="branch"]', '[data-testid*="ref-name"]', '.commit-author',
         '.commit-title', '.sha', '[data-commit-sha]', 'relative-time',
         'a[data-hovercard-type="user"]', 'a[data-hovercard-type="repository"]',
