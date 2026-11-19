@@ -1,0 +1,46 @@
+name: Auto-merge team PRs
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+
+permissions: {}
+
+jobs:
+  auto-merge:
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'pull_request' &&
+      github.event.workflow_run.head_repository.full_name == github.repository
+    runs-on: ubuntu-24.04
+    timeout-minutes: 3
+    permissions:
+      contents: write
+      pull-requests: read
+    steps:
+      - name: Merge the checked head through branch protection
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          CHECKED_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          # Use only GitHub API metadata. Do not check out or execute PR code here.
+          pr=$(jq -r --arg sha "$CHECKED_SHA" '
+            .workflow_run.pull_requests[] | select(.base.ref == "main" and .head.sha == $sha) | .number
+          ' "$GITHUB_EVENT_PATH")
+          if [[ ! $pr =~ ^[0-9]+$ ]]; then
+            echo 'No single PR to main was associated with this run.'
+            exit 0
+          fi
+          current=$(gh api "repos/$GH_REPO/pulls/$pr")
+          if ! jq -e --arg repo "$GH_REPO" --arg sha "$CHECKED_SHA" '
+            .state == "open" and (.draft | not) and .base.ref == "main"
+            and .head.repo.full_name == $repo and .head.sha == $sha
+            and (.user.login == "kingjian0801" or .user.login == "coco413")
+          ' <<< "$current" >/dev/null; then
+            echo 'The PR is no longer eligible to merge.'
+            exit 0
+          fi
+          gh api --method PUT "repos/$GH_REPO/pulls/$pr/merge" \
+            -f "sha=$CHECKED_SHA" -f merge_method=merge | jq -e '.merged'
