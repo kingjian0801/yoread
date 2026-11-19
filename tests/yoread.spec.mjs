@@ -53,6 +53,7 @@ test('requires confirmation per page, including login pages and navigation', asy
     expect(fixture.requests).toHaveLength(0);
     await translate(popup);
     await state(popup, 'done');
+    await expect(popup.locator('#restore')).toBeFocused();
     await expect(page.locator('#paragraph')).toHaveText('译文 · A quiet page for reading.');
     expect(fixture.requests[0].headers.cookie).toBeUndefined();
     expect(fixture.requests[0].headers.referer).toBeUndefined();

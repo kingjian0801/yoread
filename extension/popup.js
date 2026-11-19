@@ -154,7 +154,11 @@ async function pageAction(type) {
   pageBusy = false;
   applyPageReply(reply);
   if (view.state === 'needs-consent') $('confirm').focus();
-  else if (type === 'page.dismiss' && !translate.disabled) translate.focus();
+  else if (type === 'page.confirm' || type === 'page.dismiss') {
+    const next = !restore.disabled && type === 'page.confirm' ? restore
+      : !translate.disabled ? translate : pageStatus;
+    next.focus();
+  }
 }
 
 async function settingsAction(type, fields = {}) {
@@ -215,7 +219,8 @@ githubSwitch.addEventListener('change', async () => {
       githubEnabled = enabled;
       feedback('github-status', enabled ? 'GitHub 汉化已开启。' : 'GitHub 汉化已关闭。', 'success');
     } else {
-      feedback('github-status', errorMessage(reply.code), 'error');
+      feedback('github-status', reply.code === 'permission-denied'
+        ? '请允许访问 github.com 后再试。' : '无法更新 GitHub 汉化设置。请重试。', 'error');
     }
   } catch {
     feedback('github-status', '无法更新 GitHub 汉化设置。请重试。', 'error');

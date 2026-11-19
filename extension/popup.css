@@ -5,6 +5,7 @@
   --ink: #1b2825;
   --muted: #455c53;
   --rule: #b8cbc2;
+  --field-rule: #6f897d;
   --teal: #135f53;
   --teal-hover: #0d4c42;
   --teal-soft: #e7efe7;
@@ -123,7 +124,7 @@ input[type="password"] {
   min-height: 36px;
   flex: 1;
   padding: 6px 9px;
-  border: 1px solid var(--rule);
+  border: 1px solid var(--field-rule);
   border-radius: 7px;
   color: var(--ink);
   caret-color: var(--teal);
