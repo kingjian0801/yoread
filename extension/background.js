@@ -36,11 +36,35 @@ async function setGithub(enabled) {
     return success({ github: enabled });
 }
 
-function changeGithub(enabled) {
-    const update = githubUpdate.then(() => setGithub(enabled));
+function queueGithub(change) {
+    const update = githubUpdate.then(change);
     githubUpdate = update.catch(() => {});
     return update;
 }
+
+function changeGithub(enabled) {
+    return queueGithub(() => setGithub(enabled));
+}
+
+function restoreGithub() {
+    return queueGithub(async () => {
+        const { github } = await local.get('github');
+        if (!github) return false;
+        if (!await chrome.permissions.contains({ origins: [githubOrigin] })) {
+            await setGithub(false);
+            return false;
+        }
+        const registered = await chrome.scripting.getRegisteredContentScripts({ ids: [githubScriptId] });
+        return registered.length > 0 || (await setGithub(true)).ok;
+    });
+}
+
+function restoreGithubAfterStartup() {
+    void restoreGithub().catch(() => {});
+}
+
+chrome.runtime.onInstalled.addListener(restoreGithubAfterStartup);
+chrome.runtime.onStartup.addListener(restoreGithubAfterStartup);
 
 chrome.permissions.onRemoved.addListener(({ origins }) => {
     if (origins?.includes(githubOrigin)) {
@@ -94,8 +118,8 @@ async function handle(message, sender) {
     if (sender.url !== chrome.runtime.getURL('popup.html')) return restricted();
     switch (message.type) {
         case 'settings.get': {
-            const { key, github } = await local.get(['key', 'github']);
-            return success({ configured: Boolean(key), github: Boolean(github) });
+            const [{ key }, github] = await Promise.all([local.get('key'), restoreGithub()]);
+            return success({ configured: Boolean(key), github });
         }
         case 'settings.save': {
             const key = typeof message.key === 'string' ? message.key.trim() : '';

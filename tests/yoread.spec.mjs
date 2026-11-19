@@ -225,7 +225,7 @@ test('handles provider balance, rate limits and timeout without losing the origi
 });
 
 test('GitHub localization runs locally and restores independently of body translations', async ({ browserApp }) => {
-    const { fixture, open, page } = browserApp;
+    const { context, fixture, open, openPopup, page } = browserApp;
     fixture.html = req => `<nav aria-label="Repository"><a id="source" href="/acme/demo">Code</a>
         <a id="issues" href="/acme/demo/issues">Issues</a><a id="prs" href="/acme/demo/pulls">Pull requests</a>
         <a data-hovercard-type="user" href="/Code">Code</a></nav>
@@ -254,6 +254,13 @@ test('GitHub localization runs locally and restores independently of body transl
     await expect(page.locator('#paragraph')).toHaveText('译文 · A quiet page for reading.');
     await popup.locator('#github').check();
     await expect(popup.locator('#github-status')).toContainText('已开启');
+    const [worker] = context.serviceWorkers();
+    await worker.evaluate(() => chrome.scripting.unregisterContentScripts({ ids: ['yoread-github'] }));
+    await page.reload();
+    await expect(page.locator('#source')).toHaveText('Code');
+    const reopened = await openPopup();
+    await expect(reopened.locator('#github')).toBeChecked();
+    await expect(page.locator('#source')).toHaveText('代码');
     await page.goto('https://github.com/acme/demo/issues/1');
     await expect(page.locator('#issues')).not.toHaveText('Issues');
     await expect(page.locator('#route-state')).not.toHaveText('Open');
