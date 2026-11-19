@@ -15,6 +15,7 @@ const messages = {
   timeout: 'DeepSeek 响应超时。请重试。',
   service: 'DeepSeek 服务暂不可用。请稍候再试。',
   response: 'DeepSeek 返回的译文格式不完整。请重试。',
+  untranslated: '仍有英文正文，点击「重试翻译」可补译。',
   network: '无法连接 DeepSeek。请检查网络后重试。',
   'invalid-config': 'DeepSeek 拒绝了请求。请检查设置后重试。',
   unsupported: '当前页面不允许扩展读取。请打开普通网页后再试。',
@@ -94,7 +95,9 @@ function feedback(id, text, tone = '') {
 }
 
 function renderSettings() {
-  $('key-state').textContent = configured ? '已配置' : '未配置';
+  const keyState = $('key-state');
+  keyState.textContent = configured ? '已配置' : '未配置';
+  keyState.toggleAttribute('data-configured', configured);
   $('save-key').disabled = settingsBusy || !settingsKnown;
   $('test-key').disabled = settingsBusy || !configured;
   $('clear-key').disabled = settingsBusy || !configured;

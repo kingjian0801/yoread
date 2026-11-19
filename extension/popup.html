@@ -10,12 +10,17 @@
   <body>
     <main>
       <header class="masthead">
+        <span class="brand-mark" aria-hidden="true"></span>
         <h1>Yoread</h1>
-        <p class="language">英文 <span aria-hidden="true">→</span><span class="sr-only">译为</span> 简体中文</p>
       </header>
 
       <section class="translation" aria-labelledby="translation-title">
         <h2 id="translation-title">当前网页</h2>
+        <div class="languages">
+          <span>英文</span>
+          <span class="direction" aria-hidden="true"></span><span class="sr-only">译为</span>
+          <span>简体中文</span>
+        </div>
         <p id="page-status" role="status" data-state="idle" tabindex="-1">打开网页后即可手动翻译。</p>
         <progress id="translation-progress" aria-label="正文翻译进度" aria-describedby="page-status" hidden></progress>
         <div id="page-actions" class="button-row">
@@ -32,35 +37,37 @@
         </section>
       </section>
 
-      <details id="key-settings" open>
-        <summary>
-          <span>DeepSeek 设置</span>
-          <span id="key-state" class="setting-state" role="status">未配置</span>
-        </summary>
-        <form id="key-form" autocomplete="off">
-          <label for="key">DeepSeek API Key</label>
-          <div class="key-row">
-            <input id="key" type="password" spellcheck="false" autocomplete="off"
-              autocapitalize="none" placeholder="粘贴你的 API Key" aria-describedby="key-note">
-            <button type="submit" id="save-key">保存</button>
-          </div>
-          <p id="key-note" class="hint">Key 保存在此浏览器。连接测试使用固定短文本。</p>
-          <div class="button-row small">
-            <button type="button" id="test-key" disabled>测试连接</button>
-            <button type="button" id="clear-key" disabled>清除 Key</button>
-          </div>
-          <p id="settings-status" role="status" class="feedback" hidden></p>
-        </form>
-      </details>
+      <div class="tools">
+        <details id="key-settings" open>
+          <summary>
+            <span>DeepSeek 设置</span>
+            <span id="key-state" class="setting-state" role="status">未配置</span>
+          </summary>
+          <form id="key-form" autocomplete="off">
+            <label for="key">DeepSeek API Key</label>
+            <div class="key-row">
+              <input id="key" type="password" spellcheck="false" autocomplete="off"
+                autocapitalize="none" placeholder="粘贴你的 API Key" aria-describedby="key-note">
+              <button type="submit" id="save-key">保存</button>
+            </div>
+            <p id="key-note" class="hint">Key 保存在此浏览器。连接测试使用固定短文本。</p>
+            <div class="button-row small">
+              <button type="button" id="test-key" disabled>测试连接</button>
+              <button type="button" id="clear-key" disabled>清除 Key</button>
+            </div>
+            <p id="settings-status" role="status" class="feedback" hidden></p>
+          </form>
+        </details>
 
-      <section class="github" aria-labelledby="github-label">
-        <label for="github">
-          <span id="github-label">GitHub 界面汉化</span>
-          <span class="hint">本地词库，独立于网页正文翻译。</span>
-        </label>
-        <input id="github" type="checkbox" role="switch" aria-labelledby="github-label" disabled>
-        <p id="github-status" role="status" class="feedback" hidden></p>
-      </section>
+        <section class="github" aria-labelledby="github-label">
+          <label for="github">
+            <span id="github-label">GitHub 界面汉化</span>
+            <span class="hint">本地词库，独立于网页正文翻译。</span>
+          </label>
+          <input id="github" type="checkbox" role="switch" aria-labelledby="github-label" disabled>
+          <p id="github-status" role="status" class="feedback" hidden></p>
+        </section>
+      </div>
     </main>
   </body>
 </html>

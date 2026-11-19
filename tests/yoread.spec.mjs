@@ -206,6 +206,52 @@ test('recovers malformed batches and counts content below the fold', async ({ br
     await expect(page.locator('#p5')).toHaveText(texts[5]);
 });
 
+test('retries copied English next to inline code before reporting completion', async ({ browserApp }) => {
+    const { fixture, open, page } = browserApp;
+    const lead = 'An extension with the';
+    const sentence = 'permission only obtains access to a tab in response to an explicit user gesture.';
+    const tail = 'If the extension is compromised the attacker would need to wait for the user to invoke the extension before obtaining access. And that access only lasts until the tab is navigated or is closed.';
+    const original = sentence + ' ' + tail;
+    const full = '权限只在用户明确操作时授予标签页访问权限。扩展受到入侵时，攻击者仍须等待用户调用扩展。标签页跳转或关闭时，访问权限即失效。';
+    fixture.html = `<main><p id="sample">${lead} <code translate="no">"activeTab"</code> ${original}</p>
+        <p id="name">Visual Studio Code</p></main>`;
+    fixture.reply = ({ texts }) => ({
+        translations: texts.map(text => {
+            if (text === original) return fixture.requests.length === 1 ? '权限只在用户明确操作时生效。' + tail : full;
+            return text === lead ? '具有以下权限的扩展' : text;
+        }),
+    });
+    const popup = await open();
+    await setKey(popup);
+    await translate(popup);
+    await state(popup, 'done');
+    await expect(page.locator('#sample')).toContainText(full);
+    await expect(page.locator('code')).toHaveText('"activeTab"');
+    await expect(page.locator('#name')).toHaveText('Visual Studio Code');
+    expect(fixture.requests.map(request => request.texts)).toEqual([[lead, original, 'Visual Studio Code'], [original]]);
+    await popup.locator('#restore').click();
+    await expect(page.locator('#sample')).toHaveText(`${lead} "activeTab" ${original}`);
+});
+
+test('reports English prose that remains after retry as unfinished', async ({ browserApp }) => {
+    const { fixture, open, page } = browserApp;
+    const original = 'This extension will only read the file when you open it.';
+    fixture.html = `<main><p id="sample">${original}</p><p>Good morning.</p></main>`;
+    fixture.reply = ({ texts }) => ({ translations: texts.map(text => text === original ? text : '早上好。') });
+    const popup = await open();
+    await setKey(popup);
+    await translate(popup);
+    await state(popup, 'partial');
+    await expect(popup.locator('#page-status')).toContainText('仍有英文正文');
+    await expect(page.locator('#sample')).toHaveText(original);
+    expect(fixture.requests.map(request => request.texts)).toEqual([[original, 'Good morning.'], [original]]);
+    fixture.reply = () => ({ translations: ['仅在你打开文件时读取。'] });
+    await translate(popup, false);
+    await state(popup, 'done');
+    await expect(page.locator('#sample')).toHaveText('仅在你打开文件时读取。');
+    expect(fixture.requests[2].texts).toEqual([original]);
+});
+
 test('handles provider balance, rate limits and timeout without losing the original', async ({ browserApp }) => {
     const { fixture, open, page } = browserApp;
     const popup = await open();
