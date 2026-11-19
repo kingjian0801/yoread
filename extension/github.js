@@ -13,16 +13,22 @@
         '.State', '.StateLabel', '[data-testid="issue-state-badge"]',
         '[data-testid="state-label"]', '[class*="StateLabel"]',
     ].join(',');
-    const protectedContent = [
+    const userContent = [
         'article', '.markdown-body', '.js-comment-body', '.comment-body',
         '.js-issue-title', '.markdown-title', '[data-testid="issue-title"]',
         '[data-testid="issue-body"]', '[data-testid="comment-body"]',
+    ].join(',');
+    const identifiers = [
         '.AppHeader-context', '.branch-name', '[class*="branchName"]',
         '[data-testid*="branch"]', '[data-testid*="ref-name"]', '.commit-author',
         '.commit-title', '.sha', '[data-commit-sha]', 'relative-time',
         'a[data-hovercard-type="user"]', 'a[data-hovercard-type="repository"]',
         '.user-mention', '.author', '.repo-and-owner', '.react-directory-filename-column',
         'nav[data-component="Breadcrumbs"]', 'a[href*="/commit/"]',
+        'strong[itemprop="name"]', '[data-testid="repository-name"]',
+    ].join(',');
+    const protectedContent = [
+        userContent, identifiers,
         'input', 'textarea', 'select', 'option', '[contenteditable]',
         'script', 'style', 'template', 'code', 'pre', 'kbd', 'samp', 'svg',
         '[hidden]', '[inert]', '[aria-hidden="true"]', '[translate="no"]',
@@ -79,6 +85,14 @@
         if (!page || !element?.closest(fixed) || element.closest(protectedContent) ||
             isIdentifier(element)) return false;
         return !ignore || !element.closest(ignore);
+    }
+
+    function excludes(node) {
+        if (!enabled) return false;
+        if (route !== location.pathname) readRoute();
+        const element = node.parentElement;
+        return Boolean(page && element && (element.closest(identifiers) ||
+            (element.closest(fixed) && !element.closest(userContent))));
     }
 
     function lookup(source) {
@@ -185,14 +199,14 @@
             return;
         }
         readRoute();
-        globalThis.yoreadPage?.release?.(owns);
+        globalThis.yoreadPage?.release?.(excludes);
         observer.observe(document.documentElement, { subtree: true, childList: true, characterData: true });
         globalThis.navigation?.addEventListener('currententrychange', onNavigation);
         addEventListener('popstate', onNavigation);
         scan(document.body);
     }
 
-    globalThis.yoreadGitHub = { owns };
+    globalThis.yoreadGitHub = { owns, excludes };
     chrome.runtime.onMessage.addListener((message, sender, respond) => {
         if (sender.id !== chrome.runtime.id || message?.type !== 'content.github') return;
         setEnabled(message.enabled === true);
