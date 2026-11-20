@@ -44,9 +44,9 @@
         if (original.length >= 5 && rendered.length >= 5 &&
             original.some(word => clauseWord.test(word)) && !/\p{Script=Han}/u.test(translation)) return true;
 
-        // A Chinese prefix alone cannot turn a copied English sentence into a successful translation.
         const remaining = ` ${rendered.join(' ')} `;
-        const clauseLength = 7;
+        // Match the entire short fragment or look for longer clauses in larger fragments.
+        const clauseLength = Math.max(5, Math.min(7, original.length));
         for (let i = 0; i <= original.length - clauseLength; i++) {
             const phrase = original.slice(i, i + clauseLength);
             if (phrase.some(word => clauseWord.test(word)) && remaining.includes(` ${phrase.join(' ')} `)) return true;
