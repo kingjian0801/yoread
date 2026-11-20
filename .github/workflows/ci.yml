@@ -44,6 +44,10 @@ jobs:
   browser-e2e:
     name: Browser E2E
     runs-on: ubuntu-24.04
+    container:
+      # Update this image and digest with @playwright/test in package-lock.json.
+      image: mcr.microsoft.com/playwright:v1.65.1-noble@sha256:1507cbfc550a63a6b7396791ca4f00df17beb56342d2447b3f106c306f525579
+      options: --ipc=host
     timeout-minutes: 12
     steps:
       - name: Check out repository
@@ -69,12 +73,11 @@ jobs:
         run: |
           npm ci
           npm run build
-      - name: Install Chromium for extension tests
-        run: npx playwright install --with-deps --no-shell chromium
       - name: Run browser end-to-end tests
         run: npm test
       - name: Archive corresponding source
-        run: git archive --format=zip --prefix=yoread-source/ -o dist/yoread-source.zip HEAD
+        # The hosted runner owns the mounted checkout outside the container.
+        run: git -c safe.directory="$GITHUB_WORKSPACE" archive --format=zip --prefix=yoread-source/ -o dist/yoread-source.zip HEAD
       - name: Upload the tested extension
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
