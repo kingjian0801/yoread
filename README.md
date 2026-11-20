@@ -93,4 +93,4 @@ bash scripts/server-cd/install-runner.sh /absolute/path/actions-runner-linux-x64
 - 安装脚本从标准输入读取一行注册令牌。Runner 以专用系统账户运行，发布程序核验 GitHub 签发的任务身份、CI 门禁和产物 SHA-256 后，才会切换 `current`。
 - 从旧方案迁移时，首次 Runner 发布验证通过后执行 `systemctl disable --now yoread-deploy.timer`，并执行 `systemctl stop yoread-deploy.service`。Runner 服务名为 `yoread-actions-runner.service`。
 - 扩展目录为 `/root/kim_workspace/yoread/current/extension`，同目录下有 `yoread-chrome-trial.zip`、对应源码和记录提交及 Actions 运行 ID 的 `deployment.json`。
-- 在 [GitHub Actions CI](https://github.com/kingjian0801/yoread/actions/workflows/ci.yml) 查看部署日志。重试发布时，在 `main` 上启动一次新的 CI 运行。
+- 在 [GitHub Actions CI](https://github.com/kingjian0801/yoread/actions/workflows/ci.yml) 查看部署日志，可重跑失败任务，或在 `main` 上启动一次新的 CI。

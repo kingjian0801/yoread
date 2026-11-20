@@ -18,6 +18,9 @@ import jwt
 
 
 REPOSITORY = "kingjian0801/yoread"
+REPOSITORY_ID = "1462882944"
+OWNER_ID = "24697783"
+SUBJECT = f"repo:kingjian0801@{OWNER_ID}/yoread@{REPOSITORY_ID}:environment:production"
 ISSUER = "https://token.actions.githubusercontent.com"
 AUDIENCE = "yoread-production"
 API = f"https://api.github.com/repos/{REPOSITORY}"
@@ -47,20 +50,27 @@ def verify_job(token):
     key = keys.get_signing_key_from_jwt(token)
     claims = jwt.decode(token, key.key, algorithms=["RS256"], audience=AUDIENCE, issuer=ISSUER,
                         options={"require": ["exp", "iat", "nbf", "sub"]})
+    expected_claims = {
+        "repository": REPOSITORY,
+        "repository_id": REPOSITORY_ID,
+        "repository_owner_id": OWNER_ID,
+        "ref": "refs/heads/main",
+        "workflow_ref": f"{REPOSITORY}/.github/workflows/ci.yml@refs/heads/main",
+        "sub": SUBJECT,
+        "runner_environment": "self-hosted",
+    }
+    mismatches = [name for name, value in expected_claims.items() if claims.get(name) != value]
+    if mismatches:
+        raise ValueError("The job is outside the allowed Yoread deployment workflow: " + ", ".join(mismatches))
     revision = claims["sha"]
     run_id = claims["run_id"]
-    attempt = claims["run_attempt"]
-    if (claims["repository"] != REPOSITORY or claims["ref"] != "refs/heads/main"
-            or claims["workflow_ref"] != f"{REPOSITORY}/.github/workflows/ci.yml@refs/heads/main"
-            or claims["sub"] != f"repo:{REPOSITORY}:environment:production"
-            or claims["runner_environment"] != "self-hosted"
-            or claims["event_name"] not in EVENTS
-            or not re.fullmatch(REVISION, revision)
-            or not all(re.fullmatch(r"[0-9]+", value) for value in (run_id, attempt))):
-        raise ValueError("The job is outside the allowed Yoread deployment workflow")
+    if claims["event_name"] not in EVENTS or not re.fullmatch(REVISION, revision) or not re.fullmatch(r"[0-9]+", run_id):
+        raise ValueError("The job is outside the allowed workflow event, revision or run")
 
-    jobs = github(f"/actions/runs/{run_id}/attempts/{attempt}/jobs")["jobs"]
-    if not any(job["name"] == "Repository checks" and job["conclusion"] == "success" for job in jobs):
+    # A deploy-only retry reuses successful checks from an earlier attempt of this run.
+    jobs = github(f"/actions/runs/{run_id}/jobs?filter=all&per_page=100")["jobs"]
+    checks = [job for job in jobs if job["name"] == "Repository checks"]
+    if not checks or max(checks, key=lambda job: job["id"])["conclusion"] != "success":
         raise ValueError("The deployment run has no successful Repository checks")
 
     artifacts = github(f"/actions/runs/{run_id}/artifacts?name=yoread-chrome-trial")["artifacts"]
