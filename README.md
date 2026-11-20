@@ -91,7 +91,7 @@ git push -u origin HEAD
 ### 2. 创建 PR 并等待自动合并
 
 1. 用自己的 GitHub 账号创建 PR，目标分支选 `main`，来源选刚推送到 Yoread 同仓库的开发分支。草稿准备好后点 **Ready for review**。 [创建 PR](https://github.com/kingjian0801/yoread/compare)
-2. 在 PR 的 **Checks** 查看 `Repository checks`。Kim 和 Coco 的正式 PR 会在单元测试、集成测试和 Chromium E2E 全部通过后自动合并。若检查失败，在同一个分支修复、提交并推送，现有 PR 会自动更新并重跑。
+2. 在 PR 的 **Checks** 查看 `Select PR checks` 和 `Repository checks`。Kim 和 Coco 的正式 PR 会在选中的检查全部通过后自动合并。若检查失败，在同一个分支修复、提交并推送，现有 PR 会自动更新并重跑。
 3. 合并后，机器人会触发 `main` 的 CI。它针对合并提交再跑三组测试，全部通过后将 **Deploy to production** 交给服务器上的 `yoread-production` Runner。PR 运行中的部署任务显示 **Skipped** 属正常。 [CI 运行](https://github.com/kingjian0801/yoread/actions/workflows/ci.yml)
 
 ### 3. 核对服务器发布版本
@@ -110,7 +110,12 @@ readlink /root/kim_workspace/yoread/current
 
 ## CI
 
-[GitHub Actions CI](https://github.com/kingjian0801/yoread/actions/workflows/ci.yml) 在推送到 `main`、创建或更新 PR，以及手动触发时运行三组独立检查。单元测试检查分批、漏译检测与 API 响应解析。集成测试用本地模拟 API 验证后台消息、请求和错误。Chromium E2E 构建扩展并验证浏览器操作。`Repository checks` 在三组均通过时才成功。
+[GitHub Actions CI](https://github.com/kingjian0801/yoread/actions/workflows/ci.yml) 根据 PR 待合并提交的实际文件差异选档。`Repository checks` 始终汇总选中的作业结果。
+
+- **轻量档**适用于弹窗 CSS，以及设置展开入口内的文字和静态标记。例如挪动按钮、调整间距或修改设置入口。CI 构建扩展，并运行标记为 `@popup` 的 Chromium 冒烟和回归用例，覆盖窄窗口、设置展开、Key 操作、发送确认、翻译进度、恢复原文和 GitHub 汉化开关。
+- **完整档**适用于其余改动，包括翻译、确认和权限逻辑、弹窗脚本、依赖、测试、构建及 CI/CD。CI 运行 UT、集成测试和完整 Chromium E2E。`main` 的发布运行始终走完整档并校验产物。
+
+在本地构建后可运行 `npm test -- --grep @popup` 复现轻量档的浏览器检查。用于验证分档规则的单元测试需要 Git 和 Python 3。
 
 Kim（`kingjian0801`）和 Coco（`coco413`）从本仓库开发分支提交到 `main` 的非草稿 PR，在当前提交通过 CI 后由 [自动合并工作流](.github/workflows/auto-merge.yml) 合并。GitHub 的 `main` 分支保护仍要求通过 PR 和必需检查。
 
