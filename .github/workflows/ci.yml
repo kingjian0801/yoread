@@ -12,7 +12,7 @@ permissions:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   unit-tests:
@@ -83,6 +83,7 @@ jobs:
             dist/extension/
             dist/yoread-source.zip
           if-no-files-found: error
+          overwrite: true
 
   repository-checks:
     name: Repository checks
@@ -102,3 +103,31 @@ jobs:
           test "$UNIT_RESULT" = success &&
             test "$INTEGRATION_RESULT" = success &&
             test "$BROWSER_RESULT" = success
+
+  deploy:
+    name: Deploy to production
+    needs: repository-checks
+    if: >-
+      github.ref == 'refs/heads/main' &&
+      (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+    runs-on: [self-hosted, Linux, X64, yoread-production]
+    timeout-minutes: 5
+    environment: production
+    permissions:
+      actions: read
+      id-token: write
+    steps:
+      - name: Install this run's tested artifact
+        env:
+          ACTIONS_READ_TOKEN: ${{ github.token }}
+        run: |
+          bundle=$(mktemp)
+          trap 'rm -f "$bundle"' EXIT
+          artifacts="$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/artifacts?name=yoread-chrome-trial"
+          artifact_id=$(curl -fsS --max-time 20 -H "Authorization: Bearer $ACTIONS_READ_TOKEN" "$artifacts" |
+            jq -er '.artifacts | select(length == 1) | .[0] | select(.expired | not) | .id')
+          curl -fsSL --max-time 60 --max-filesize 33554432 -H "Authorization: Bearer $ACTIONS_READ_TOKEN" \
+            "$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/actions/artifacts/$artifact_id/zip" -o "$bundle"
+          identity=$(curl -fsS --max-time 20 -H "Authorization: Bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+            "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=yoread-production" | jq -er .value)
+          { printf '%s\n' "$identity"; cat "$bundle"; } | sudo -n /usr/local/sbin/yoread-publish
