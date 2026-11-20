@@ -126,7 +126,7 @@ bash -n .agents/skills/diagnosing-bugs/scripts/hitl-loop.template.sh
 
 ## 服务器部署
 
-日常发布由 GitHub Actions 自动派发。生产 Runner 下载同一次运行的已测试产物，确认方法见[核对服务器发布版本](#3-核对服务器发布版本)。
+Yoread 只通过 GitHub Actions 的 **Deploy to production** 任务部署到服务器。`main` 的 CI 通过后，服务器上的 `yoread-production` Runner 下载同一次运行的已测试产物并发布。确认方法见[核对服务器发布版本](#3-核对服务器发布版本)。
 
 首次安装时，在 Yoread 的 Actions 设置生成 Linux x64 Runner 注册令牌，下载官方 Runner 压缩包并核对 SHA-256。在服务器上用 root 执行以下命令。服务器需要 systemd、curl、jq、sudo 和系统 Python 的 PyJWT。
 
@@ -135,6 +135,6 @@ bash scripts/server-cd/install-runner.sh /absolute/path/actions-runner-linux-x64
 ```
 
 - 安装脚本从标准输入读取一行注册令牌。Runner 以专用系统账户运行，发布程序核验 GitHub 签发的任务身份、CI 门禁和产物 SHA-256 后，才会切换 `current`。
-- 从旧方案迁移时，首次 Runner 发布验证通过后执行 `systemctl disable --now yoread-deploy.timer`，并执行 `systemctl stop yoread-deploy.service`。Runner 服务名为 `yoread-actions-runner.service`。
+- 服务器上的 Runner 由 systemd 服务 `yoread-actions-runner.service` 管理。
 - 扩展目录为 `/root/kim_workspace/yoread/current/extension`，同目录下有 `yoread-chrome-trial.zip`、对应源码和记录提交及 Actions 运行 ID 的 `deployment.json`。
 - 在 [GitHub Actions CI](https://github.com/kingjian0801/yoread/actions/workflows/ci.yml) 查看部署日志，可重跑失败任务，或在 `main` 上启动一次新的 CI。
