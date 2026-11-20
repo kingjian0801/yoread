@@ -53,7 +53,7 @@ User=yoread-runner
 Group=yoread-runner
 WorkingDirectory=/opt/yoread-actions-runner
 Environment=ACTIONS_RUNNER_HOOK_JOB_STARTED=/usr/local/lib/yoread-cd/allow-runner-job.sh
-ExecStart=/opt/yoread-actions-runner/runsvc.sh
+ExecStart=/opt/yoread-actions-runner/bin/runsvc.sh
 Restart=on-failure
 RestartSec=10s
 PrivateTmp=yes
