@@ -27,6 +27,22 @@ npm test
 
 浏览器用例加载实际扩展，使用测试网页和模拟 DeepSeek 响应。安装包中的扩展代码及对应源码按 GPL-3.0 发布，保留项目原有的 [MIT 声明](LICENSE-MIT-ORIGINAL)。GitHub 词库的来源和适配范围见 [上游声明](extension/vendor/github/NOTICE.md)。
 
+### 测试驱动开发
+
+新增功能或修复可复现的行为时，用 [Matt TDD 技能](.agents/skills/tdd/SKILL.md) 跑一个短循环。
+
+1. **红灯**。在能观察到问题的现有测试层写用例，运行它并确认断言因预期行为缺失而失败。
+2. **绿灯**。做使该断言通过的最小改动，重跑同一个用例，再运行受影响的测试套件。
+3. 在 PR 的 **Evidence** 里记录用例、可复跑命令、修复前的失败原因和修复后的通过结果。把用例留在现有 UT、集成测试或 Chromium E2E 中，由 CI 按适用档位执行。
+
+例如，漏译回归期望把中文译文后原样附带的整句英文标记为未译。可单独运行该用例。
+
+```sh
+node --test --test-name-pattern='short English sentence' tests/unit/translation.test.mjs
+```
+
+纯文案和视觉微调走对应的文档或浏览器检查。有可复现的布局问题时，可以先写一个能观察到问题的 Chromium 回归用例。
+
 ## Matt 工作流
 
 本仓库已内置项目级 Matt 工程工作流，供成员使用 Codex 协作开发。

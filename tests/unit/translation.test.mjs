@@ -41,6 +41,11 @@ test('detects copied English even after a Chinese prefix', () => {
     assert.equal(containsUntranslatedProse(source, '只有打开页面后，此扩展才能读取它。'), false);
 });
 
+test('detects a short English sentence copied into otherwise Chinese output', () => {
+    assert.equal(containsUntranslatedProse('You can close this tab.',
+        '可以关闭。You can close this tab.'), true);
+});
+
 test('allows product names and code terms to stay in English', () => {
     assert.equal(containsUntranslatedProse('Visual Studio Code', 'Visual Studio Code'), false);
     assert.equal(containsUntranslatedProse('When you open a tab, call activeTab.',
