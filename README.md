@@ -6,11 +6,11 @@ Yoread 是桌面 Chrome 网页翻译扩展。使用自己的 DeepSeek API Key �
 
 1. 下载 PR CI 中的 `yoread-chrome-trial` 并解压，找到 `extension` 目录。也可在仓库根目录用 Node.js 22+ 执行 `npm run build` 得到 `dist/extension`。
 2. 在桌面 Chrome 打开 `chrome://extensions`，开启「开发者模式」，选择「加载已解压的扩展程序」，并选中含 `manifest.json` 的目录。
-3. 打开一个普通英文网页，点击工具栏的 Yoread，展开「DeepSeek 设置」并保存自己的 API Key，然后点击「测试连接」。连接测试使用固定短文本。试用模型为 DeepSeek 官方 API 的 `deepseek-flash`。
+3. 打开一个普通英文网页，点击工具栏的 Yoread，展开「设置」并保存自己的 API Key，然后点击「测试连接」。连接测试使用固定短文本。试用模型为 DeepSeek 官方 API 的 `deepseek-flash`。
 4. 点击「翻译此页」。每个页面首次发送正文前都会说明发送范围并等待确认。弹窗会显示正文进度，仍未完成时可点击「重试翻译」。滚动后新加载的正文用「翻译新增内容」补译，刷新或导航后重新确认。点击「恢复原文」可撤销正文翻译。
 5. 如需 GitHub 菜单、按钮和状态标签使用中文，打开「GitHub 界面汉化」并允许该站点的访问权限。此开关默认关闭，开启后在本地应用词库。恢复 GitHub 正文原文时，界面汉化仍保留。
 
-首版验收采用 [正式 PRD](.scratch/specs/yoread-mvp-prd.md) 的测试场景。Kim 和 Coco 分别用自己的 Key 在新闻、技术文档、博客、允许发送的非敏感登录页面及 GitHub 上试用。记录候选提交、扩展版本、样本、通过情况和问题。
+首版验收采用 [正式 PRD](docs/yoread-mvp-prd.md) 的测试场景。Kim 和 Coco 分别用自己的 Key 在新闻、技术文档、博客、允许发送的非敏感登录页面及 GitHub 上试用。记录候选提交、扩展版本、样本、通过情况和问题。
 
 ## 开发验证
 
@@ -29,7 +29,7 @@ npm test
 
 ### 测试驱动开发
 
-新增功能或修复可复现的行为时，用 [Matt TDD 技能](.agents/skills/tdd/SKILL.md) 跑一个短循环。
+新增功能或修复可复现的行为时，先复现，再修复。
 
 1. **红灯**。在能观察到问题的现有测试层写用例，运行它并确认断言因预期行为缺失而失败。
 2. **绿灯**。做使该断言通过的最小改动，重跑同一个用例，再运行受影响的测试套件。
@@ -42,43 +42,6 @@ node --test --test-name-pattern='short English sentence' tests/unit/translation.
 ```
 
 纯文案和视觉微调走对应的文档或浏览器检查。有可复现的布局问题时，可以先写一个能观察到问题的 Chromium 回归用例。
-
-## Matt 工作流
-
-本仓库已内置项目级 Matt 工程工作流，供成员使用 Codex 协作开发。
-
-## 开始使用
-
-1. 克隆仓库：
-
-   ```sh
-   git clone https://github.com/kingjian0801/yoread.git
-   cd yoread
-   ```
-
-2. 在 Codex 中打开 `yoread` 项目目录，并启动新会话。
-3. 直接描述需求，例如：“按本项目 Matt 工作流，修复……并验证。”项目入口规则见 [AGENTS.md](AGENTS.md)，技能选择入口见 [engineering-workflow](.agents/skills/engineering-workflow/SKILL.md)。
-
-仓库包含全部 28 个技能及其参考文件，无需再下载安装包或运行安装脚本，也无需安装全局 Matt 技能。成员仍需自行准备 Codex 客户端及账号；本仓库提供的是 Codex 项目配置。
-
-## 协作约定
-
-- 明确的小改动直接实施并做必要验证；较大任务按需要澄清、记录规格、拆分任务及审查。
-- 复杂任务的规格和本地任务格式见 [任务记录约定](docs/agents/issue-tracker.md)。默认不自动创建 GitHub 工单。
-- 业务术语及长期设计决策见 [术语与决策约定](docs/agents/domain.md)，本地问题分流见 [状态约定](docs/agents/triage-labels.md)。
-- 按实际改动运行项目适用的测试、静态检查及构建，并说明验证结果与未覆盖项。
-- 提交、推送、PR、合并和部署按具体任务授权执行。
-
-## 工作流文件
-
-| 路径 | 用途 |
-| --- | --- |
-| `AGENTS.md` | 项目工作流入口规则 |
-| `.agents/skills/` | 28 个项目技能及其参考文件 |
-| `docs/agents/` | 本地任务、术语及状态约定 |
-| `docs/agents/matt-workflow/` | 来源版本、版权声明和上游许可证 |
-
-Matt 上游技能固定于提交 `5863806dd4e15c63174bee4e7515a4256792ecfa`，来源记录见 [version.json](docs/agents/matt-workflow/version.json)。版权说明见 [NOTICE.md](docs/agents/matt-workflow/NOTICE.md)，上游许可证见 [mattpocock-MIT.txt](docs/agents/matt-workflow/mattpocock-MIT.txt)。后续工作流更新应连同规则、技能、参考文件及版本记录一起提交，以便成员通过 `git pull` 获取同一版本。
 
 ## 日常提交、PR 和发布
 
@@ -135,15 +98,7 @@ readlink /root/kim_workspace/yoread/current
 
 Kim（`kingjian0801`）和 Coco（`coco413`）从本仓库开发分支提交到 `main` 的非草稿 PR，在当前提交通过 CI 后由 [自动合并工作流](.github/workflows/auto-merge.yml) 合并。GitHub 的 `main` 分支保护仍要求通过 PR 和必需检查。
 
-浏览器测试任务也检查 Matt 工作流、README 本地链接和 Shell 模板语法。成功后，试用包可在 Actions 运行页下载。
-
-在项目根目录执行相同检查：
-
-```sh
-python3 scripts/check_workflow.py
-bash -n .agents/skills/wizard/template.sh
-bash -n .agents/skills/diagnosing-bugs/scripts/hitl-loop.template.sh
-```
+浏览器测试通过后，试用包可在 Actions 运行页下载。
 
 ## 服务器部署
 
