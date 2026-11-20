@@ -76,7 +76,8 @@ jobs:
       - name: Run browser end-to-end tests
         run: npm test
       - name: Archive corresponding source
-        run: git archive --format=zip --prefix=yoread-source/ -o dist/yoread-source.zip HEAD
+        # The hosted runner owns the mounted checkout outside the container.
+        run: git -c safe.directory="$GITHUB_WORKSPACE" archive --format=zip --prefix=yoread-source/ -o dist/yoread-source.zip HEAD
       - name: Upload the tested extension
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
