@@ -112,7 +112,7 @@ readlink /root/kim_workspace/yoread/current
 
 [GitHub Actions CI](https://github.com/kingjian0801/yoread/actions/workflows/ci.yml) 根据 PR 待合并提交的实际文件差异选档。`Repository checks` 始终汇总选中的作业结果。
 
-- **轻量档**适用于弹窗 CSS，以及设置展开入口内的文字和静态标记。例如挪动按钮、调整间距或修改设置入口。CI 构建扩展，并运行标记为 `@popup` 的 Chromium 冒烟和回归用例，覆盖窄窗口、设置展开、Key 操作、发送确认、翻译与恢复及 GitHub 汉化开关。
+- **轻量档**适用于弹窗 CSS，以及设置展开入口内的文字和静态标记。例如挪动按钮、调整间距或修改设置入口。CI 构建扩展，并运行标记为 `@popup` 的 Chromium 冒烟和回归用例，覆盖窄窗口、设置展开、Key 操作、发送确认、翻译进度、恢复原文和 GitHub 汉化开关。
 - **完整档**适用于其余改动，包括翻译、确认和权限逻辑、弹窗脚本、依赖、测试、构建及 CI/CD。CI 运行 UT、集成测试和完整 Chromium E2E。`main` 的发布运行始终走完整档并校验产物。
 
 在本地构建后可运行 `npm test -- --grep @popup` 复现轻量档的浏览器检查。用于验证分档规则的单元测试需要 Git 和 Python 3。

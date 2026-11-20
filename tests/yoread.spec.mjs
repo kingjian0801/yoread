@@ -204,7 +204,7 @@ test('retries only failed batches and restores all applied translations', async 
     await expect(page.locator('#p6')).toHaveText('Paragraph number 6.');
 });
 
-test('recovers malformed batches and counts content below the fold', async ({ browserApp }) => {
+test('recovers malformed batches and counts content below the fold', { tag: '@popup' }, async ({ browserApp }) => {
     const { fixture, open, page } = browserApp;
     const texts = Array.from({ length: 6 }, (_, i) => `Paragraph number ${i}.`);
     fixture.html = '<main>' + texts.map((text, i) =>
