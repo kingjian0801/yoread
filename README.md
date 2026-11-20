@@ -64,6 +64,50 @@ npm test
 
 Matt 上游技能固定于提交 `5863806dd4e15c63174bee4e7515a4256792ecfa`，来源记录见 [version.json](docs/agents/matt-workflow/version.json)。版权说明见 [NOTICE.md](docs/agents/matt-workflow/NOTICE.md)，上游许可证见 [mattpocock-MIT.txt](docs/agents/matt-workflow/mattpocock-MIT.txt)。后续工作流更新应连同规则、技能、参考文件及版本记录一起提交，以便成员通过 `git pull` 获取同一版本。
 
+## 日常提交、PR 和发布
+
+### 1. 在开发分支提交并推送
+
+开始新任务时，从最新远端 `main` 创建开发分支。下面用 `fix/page-translation` 举例。
+
+```sh
+git status --short --branch
+git fetch origin
+git switch -c fix/page-translation origin/main
+```
+
+如果已经在本地 `main` 上改了文件，用 `git switch -c fix/page-translation` 从当前提交创建分支并保留改动。已经在本次任务的开发分支上时可以直接提交。
+
+按改动范围运行[开发验证](#开发验证)。将示例文件和提交说明换成本次实际内容，再推送当前分支。
+
+```sh
+git add -- extension/page.js
+git diff --cached
+git diff --cached --check
+git commit -m "fix: 修复网页漏译"
+git push -u origin HEAD
+```
+
+### 2. 创建 PR 并等待自动合并
+
+1. 用自己的 GitHub 账号创建 PR，目标分支选 `main`，来源选刚推送到 Yoread 同仓库的开发分支。草稿准备好后点 **Ready for review**。 [创建 PR](https://github.com/kingjian0801/yoread/compare)
+2. 在 PR 的 **Checks** 查看 `Repository checks`。Kim 和 Coco 的正式 PR 会在单元测试、集成测试和 Chromium E2E 全部通过后自动合并。若检查失败，在同一个分支修复、提交并推送，现有 PR 会自动更新并重跑。
+3. 合并后，机器人会触发 `main` 的 CI。它针对合并提交再跑三组测试，全部通过后将 **Deploy to production** 交给服务器上的 `yoread-production` Runner。PR 运行中的部署任务显示 **Skipped** 属正常。 [CI 运行](https://github.com/kingjian0801/yoread/actions/workflows/ci.yml)
+
+### 3. 核对服务器发布版本
+
+在 GitHub 上，先从已合并的 PR 记下 **Merge commit** 的 SHA。到 Actions 找到同一 SHA 的 `main` 运行，确认 **Deploy to production** 成功，并在日志中找到 `Deployed Yoread`、对应 SHA 和 `from Actions run` 的运行编号。
+
+有服务器权限时，在服务器终端执行以下只读命令。
+
+```sh
+cat /root/kim_workspace/yoread/current/deployment.json
+readlink /root/kim_workspace/yoread/current
+```
+
+- `revision` 对应已发布的合并提交 SHA，`run_id` 对应发布日志里的运行编号。
+- `current` 应指向 `releases/actions/<完整 SHA>`。如果两人的 PR 接连合并，`current` 可能已经指向更新的版本。用该发布提交的历史确认是否已包含你的合并提交。
+
 ## CI
 
 [GitHub Actions CI](https://github.com/kingjian0801/yoread/actions/workflows/ci.yml) 在推送到 `main`、创建或更新 PR，以及手动触发时运行三组独立检查。单元测试检查分批、漏译检测与 API 响应解析。集成测试用本地模拟 API 验证后台消息、请求和错误。Chromium E2E 构建扩展并验证浏览器操作。`Repository checks` 在三组均通过时才成功。
@@ -82,7 +126,7 @@ bash -n .agents/skills/diagnosing-bugs/scripts/hitl-loop.template.sh
 
 ## 服务器部署
 
-Kim 或 Coco 的 PR 在三组 CI 通过后自动合并。合并任务触发 `main` 上的 CI，GitHub 托管 Runner 对合并提交重新执行单元、集成和 Chromium E2E 测试。三组通过后，GitHub 把生产部署任务派给服务器的 `yoread-production` Runner。部署任务下载同一次运行的已测试产物。
+日常发布由 GitHub Actions 自动派发。生产 Runner 下载同一次运行的已测试产物，确认方法见[核对服务器发布版本](#3-核对服务器发布版本)。
 
 首次安装时，在 Yoread 的 Actions 设置生成 Linux x64 Runner 注册令牌，下载官方 Runner 压缩包并核对 SHA-256。在服务器上用 root 执行以下命令。服务器需要 systemd、curl、jq、sudo 和系统 Python 的 PyJWT。
 
