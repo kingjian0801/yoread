@@ -150,7 +150,7 @@ summary {
   cursor: pointer;
 }
 
-summary:hover { color: var(--accent); }
+summary:hover, summary:focus-visible { color: var(--accent); }
 summary::-webkit-details-marker { display: none; }
 summary::after {
   content: "";
