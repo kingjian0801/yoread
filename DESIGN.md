@@ -1,27 +1,32 @@
 ---
 name: Yoread
-description: Chrome popup for translating the current page.
+description: A compact, book-inspired Chrome popup for translating the current page.
 colors:
   surface: "#fff"
-  panel: "#f6f7f9"
-  ink: "#20242c"
-  muted: "#59616f"
-  rule: "#e0e3e9"
-  field-rule: "#808897"
-  accent: "#c34200"
-  accent-hover: "#a73600"
-  accent-active: "#872d00"
-  accent-soft: "#fff3e9"
+  panel: "#f8f6f2"
+  ink: "#2d2b28"
+  muted: "#6a635b"
+  rule: "#e5dfd7"
+  field-rule: "#90877e"
+  accent: "#b14520"
+  accent-hover: "#903514"
+  accent-active: "#73290f"
+  accent-soft: "#faeee2"
   success: "#176445"
-  success-soft: "#eaf5ee"
   danger: "#a52b36"
+  bookmark: "#cf8766"
 typography:
   display:
-    fontFamily: '"PingFang SC", "Microsoft YaHei", system-ui, sans-serif'
-    fontSize: "19px"
-    fontWeight: 730
-    lineHeight: 1.15
-    letterSpacing: "-.025em"
+    fontFamily: 'Georgia, "Times New Roman", serif'
+    fontSize: "22px"
+    fontWeight: 600
+    lineHeight: 1
+    letterSpacing: "-.035em"
+  language-route:
+    fontFamily: '"Songti SC", STSong, "Noto Serif CJK SC", serif'
+    fontSize: "21px"
+    fontWeight: 600
+    lineHeight: 1.45
   headline:
     fontSize: "14px"
     lineHeight: 1.35
@@ -32,17 +37,13 @@ typography:
   label:
     fontSize: "12px"
 rounded:
-  mark-corner: "2px"
-  mark-fold: "4px"
-  control: "12px"
-  brand-mark: "10px"
-  panel: "16px"
+  control: "10px"
+  sheet: "13px"
   pill: "20px"
 spacing:
   row-gap: "8px"
-  panel-inset: "12px"
-  popup-inset: "20px"
-  narrow-inset: "16px"
+  popup-inset: "16px"
+  narrow-inset: "12px"
 components:
   button-primary:
     backgroundColor: "{colors.accent}"
@@ -74,19 +75,21 @@ components:
     backgroundColor: "{colors.panel}"
     textColor: "{colors.ink}"
   language-route:
-    textColor: "{colors.muted}"
-  panel-consent:
+    typography: "{typography.language-route}"
+    textColor: "{colors.ink}"
+  route-sheet:
     backgroundColor: "{colors.accent-soft}"
     textColor: "{colors.ink}"
-    rounded: "{rounded.panel}"
-    padding: "{spacing.panel-inset}"
+    rounded: "{rounded.sheet}"
+    padding: "15px 16px 13px"
+  panel-consent:
+    padding: "12px 0 0"
   settings-state:
     backgroundColor: transparent
     textColor: "{colors.muted}"
     rounded: "{rounded.pill}"
     padding: "2px 8px"
   settings-state-configured:
-    backgroundColor: "{colors.success-soft}"
     textColor: "{colors.success}"
   switch:
     backgroundColor: "{colors.surface}"
@@ -101,38 +104,50 @@ components:
 
 ## Overview
 
-Yoread is a compact desktop Chrome utility. Alibaba Fusion informs the clear control hierarchy. The white workspace leads with page status and actions. A single disclosure groups DeepSeek and GitHub configuration. Warm orange marks the primary action and the translation destination.
+**Creative North Star** — The bookmarked page
+
+Yoread borrows the open-book mark, serif lettering and bookmark of a printed book for a short browser task. The language route takes the largest type in the workspace. A reader can check the current page’s status directly beneath it and reach the translation action in the next row.
+
+- The masthead pairs Yoread with its translation provider.
+- One warm paper sheet groups the language route, status and progress.
+- The bottom disclosure keeps configuration within reach.
 
 ## Colors
 
-Use white for the workspace and collapsed settings, and light gray when settings are expanded. Ink carries titles and actions, muted carries status and hints, and divider rules separate rows. The darker field rule outlines inputs and secondary buttons. Use orange for the primary action, active updates, and consent. Green indicates configured, restored, or completed states. Red marks errors and incomplete translations.
+Terracotta marks the book outline, direction arrow, primary action and working or confirmation status. Its darker shades distinguish hover, pressed and keyboard focus. The pale peach sheet carries a muted copper bookmark. Ink and warm gray keep language names distinct from status and provider text.
+
+The workspace is white. The restore button and settings share a warm off-white fill. A light rule divides settings from the workspace, while a darker rule outlines editable fields and secondary actions. Green accompanies success or a configured key. Red accompanies an error or incomplete result.
 
 ## Typography
 
-Use one system sans-serif stack for the wordmark and Chinese interface. The wordmark is 19px. Controls and body copy use 14px. The language route, page status, and settings labels use 12px. Progress counts use tabular figures.
+The Yoread wordmark uses Georgia with a tight line height. The language names use a Chinese serif stack with a taller line box so the arrow aligns with the characters. The provider, actions, status, hints and settings use the system sans-serif stack. Controls use a 650 weight, supporting text uses 12px, and page status uses tabular figures for changing counts.
 
 ## Layout
 
-The popup is 400px wide and capped at the viewport width. Horizontal padding drops from 20px to 16px at viewport widths of 340px or less. Place the inline language route on the right of the masthead. Below it, put page status and actions before the single settings disclosure. The translate and restore actions have a 3:2 width ratio, and the confirmation actions have equal widths. Use an 8px gap within action rows.
+The popup is 360px wide, capped at the viewport width. The masthead, translation area and settings share 16px side insets. The provider sits at the trailing edge of the masthead. The language route wraps between whole labels. At 300px and below, side insets shrink to 12px and the route uses 18px type with an 8px gap.
+
+The page actions sit 10px below the sheet. Translate and restore divide the row in a 3:2 ratio with an 8px gap. The inline consent form takes their place when confirmation is required and gives its two buttons equal width.
 
 ## Elevation & Depth
 
-A thin rule separates the workspace from settings. The settings area gains a light gray fill when expanded. The consent panel uses a pale orange fill.
+Flat fills distinguish the sheet and settings from the white workspace. A single horizontal rule marks the beginning of settings in both its open and closed states.
 
 ## Shapes
 
-Use 12px corners on buttons and the password field, 16px on the consent panel, and 20px on the configuration badge and switch track. The masthead mark is a 28px square with 10px corners. Its two outline strokes use 2px corners and 4px folds.
+The open-book mark uses two skewed page outlines inside a 25 × 21px area. A 10 × 17px notched ribbon hangs from the sheet’s top right edge. The sheet has 13px corners, buttons and the password field have 10px corners, and the switch has a rounded track.
 
 ## Components
 
-### Actions and status
+### Language route and page status
 
-Pair a filled translation button with a softly filled restore button. The restore button uses a transparent background when disabled. Main controls are at least 40px high. Connection testing and key clearing use 36px controls. The status names progress, success, or a retryable issue. The 6px progress bar appears while translation runs. Return keyboard focus to the translation action after restoring the original.
+Place the source and destination on either side of a terracotta arrow. Keep the status directly under the route. While translation runs, show a 6px progress bar below the status.
 
-### Language route and send confirmation
+### Actions and confirmation
 
-Show the source and destination inline in the masthead, with an arrow between them. On the first translation request for a page, replace the normal action row with the inline consent panel. Name DeepSeek as the recipient and make the current-page scope visible. Move keyboard focus to confirmation and restore it to the available page action or status after dismissal.
+The filled button translates or confirms sending the current page’s text to DeepSeek. Restore uses a soft fill, including in its disabled state. Cancel and key-management actions use outlines. Main buttons are at least 40px tall. Connection testing and key clearing use 36px controls. Consent copy names the recipient and the current-page scope before the confirmation button.
 
 ### Settings disclosure and switch
 
-Use a native details disclosure with a right-aligned chevron. Show the API Key configuration state in the disclosure row and open settings initially when the key is missing. Place a labeled password field and the GitHub interface translation switch inside the same disclosure, on separate rows. Focus uses a visible 2px dark orange outline with a 3px offset. Button colors, chevron rotation, and switch movement respect reduced-motion preferences.
+The 42px-minimum summary row contains a sliders icon, the settings label, key state and chevron. A configured key has a small green dot and a text label. The single disclosure opens initially when the key is missing. Inside, the labeled password field and save button share a row. Below the key controls, a rule introduces the independent GitHub local interface translation switch.
+
+Keyboard focus uses a 2px dark terracotta outline with a 3px offset. Button colors and the disclosure chevron respond over 140ms, while the switch thumb moves over 160ms. Reduced motion removes these transitions.
