@@ -17,23 +17,21 @@ concurrency:
 jobs:
   check-scope:
     name: Select PR checks
+    if: github.event_name == 'pull_request'
     runs-on: ubuntu-24.04
     timeout-minutes: 2
     outputs:
       mode: ${{ steps.select.outputs.mode }}
     steps:
-      - if: github.event_name == 'pull_request'
-        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
           fetch-depth: 2
           persist-credentials: false
       - id: select
         name: Select checks for the tested commit
-        env:
-          EVENT_NAME: ${{ github.event_name }}
         run: |
           mode=full
-          if [ "$EVENT_NAME" = pull_request ] && git cat-file -e HEAD^1:scripts/pr-check-scope.py 2>/dev/null; then
+          if git cat-file -e HEAD^1:scripts/pr-check-scope.py 2>/dev/null; then
             # Use the policy from the base commit of the tested merge.
             mode=$(git show HEAD^1:scripts/pr-check-scope.py | python3 -)
           fi
@@ -43,7 +41,9 @@ jobs:
   unit-tests:
     name: Unit tests
     needs: check-scope
-    if: needs.check-scope.outputs.mode == 'full'
+    if: >-
+      ${{ !cancelled() && (github.event_name != 'pull_request' ||
+        (needs.check-scope.result == 'success' && needs.check-scope.outputs.mode == 'full')) }}
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
@@ -58,7 +58,9 @@ jobs:
   integration-tests:
     name: Integration tests
     needs: check-scope
-    if: needs.check-scope.outputs.mode == 'full'
+    if: >-
+      ${{ !cancelled() && (github.event_name != 'pull_request' ||
+        (needs.check-scope.result == 'success' && needs.check-scope.outputs.mode == 'full')) }}
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
@@ -73,6 +75,7 @@ jobs:
   browser-e2e:
     name: Browser E2E
     needs: check-scope
+    if: ${{ !cancelled() && (github.event_name != 'pull_request' || needs.check-scope.result == 'success') }}
     runs-on: ubuntu-24.04
     container:
       # Update this image and digest with @playwright/test in package-lock.json.
@@ -94,7 +97,7 @@ jobs:
           npm ci
           npm run build
       - name: Run browser end-to-end tests
-        if: needs.check-scope.outputs.mode == 'full'
+        if: github.event_name != 'pull_request' || needs.check-scope.outputs.mode == 'full'
         run: npm test
       - name: Run popup smoke and regression tests
         if: github.event_name == 'pull_request' && needs.check-scope.outputs.mode == 'light'
@@ -129,8 +132,14 @@ jobs:
           INTEGRATION_RESULT: ${{ needs.integration-tests.result }}
           BROWSER_RESULT: ${{ needs.browser-e2e.result }}
         run: |
+          case "$EVENT_NAME:$SCOPE_RESULT" in
+            pull_request:success) ;;
+            pull_request:*) exit 1 ;;
+            *:skipped) CHECK_MODE=full ;;
+            *) exit 1 ;;
+          esac
           printf 'Checks: %s\nUnit: %s\nIntegration: %s\nBrowser E2E: %s\n' "$CHECK_MODE" "$UNIT_RESULT" "$INTEGRATION_RESULT" "$BROWSER_RESULT"
-          test "$SCOPE_RESULT" = success && test "$BROWSER_RESULT" = success || exit 1
+          test "$BROWSER_RESULT" = success || exit 1
           case "$EVENT_NAME:$CHECK_MODE" in
             pull_request:light) test "$UNIT_RESULT" = skipped && test "$INTEGRATION_RESULT" = skipped ;;
             *:full) test "$UNIT_RESULT" = success && test "$INTEGRATION_RESULT" = success ;;
