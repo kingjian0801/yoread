@@ -16,6 +16,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 3
     permissions:
+      actions: write
       contents: write
       pull-requests: read
     steps:
@@ -44,3 +45,5 @@ jobs:
           fi
           gh api --method PUT "repos/$GH_REPO/pulls/$pr/merge" \
             -f "sha=$CHECKED_SHA" -f merge_method=merge | jq -e '.merged'
+          # A merge made with GITHUB_TOKEN does not trigger push workflows.
+          gh workflow run ci.yml --ref main
