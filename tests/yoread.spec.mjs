@@ -6,7 +6,30 @@ const state = (popup, value) => expect(popup.locator('#page-status')).toHaveAttr
 const lines = requests => requests.flatMap(request => request.texts);
 const bodyFixture = '<main><p id="paragraph">A quiet page for reading.</p></main>';
 
-test('loads the extension, saves, changes, tests and clears a local key', async ({ browserApp }) => {
+test('keeps the popup controls usable in a narrow window', { tag: '@popup' }, async ({ browserApp }) => {
+    const { open, openPopup } = browserApp;
+    const setup = await open();
+    await setKey(setup);
+    await setup.close();
+    const popup = await openPopup();
+    await popup.setViewportSize({ width: 220, height: 660 });
+    await expect(popup.locator('#translate')).toBeEnabled();
+    const fitsViewport = () => popup.evaluate(() => document.documentElement.scrollWidth <= innerWidth);
+    expect(await fitsViewport()).toBe(true);
+    const settings = popup.locator('summary');
+    await settings.focus();
+    await popup.keyboard.press('Space');
+    await expect(popup.locator('#key')).toBeVisible();
+    expect(await fitsViewport()).toBe(true);
+    await settings.click();
+    await expect(popup.locator('#key')).toBeHidden();
+    await translate(popup);
+    await state(popup, 'done');
+    await popup.locator('#restore').click();
+    await state(popup, 'restored');
+});
+
+test('loads the extension, saves, changes, tests and clears a local key', { tag: '@popup' }, async ({ browserApp }) => {
     const { open, openPopup, fixture, page } = browserApp;
     const popup = await open();
     await expect(popup.locator('#translate')).toBeDisabled();
@@ -34,7 +57,7 @@ test('loads the extension, saves, changes, tests and clears a local key', async 
     await expect(reopened.locator('#translate')).toBeDisabled();
 });
 
-test('requires confirmation per page, including login pages and navigation', async ({ browserApp }) => {
+test('requires confirmation per page, including login pages and navigation', { tag: '@popup' }, async ({ browserApp }) => {
     const { open, openPopup, fixture, page, context } = browserApp;
     await context.addCookies([{
         name: 'fixture-session', value: 'sample', url: 'https://fixture.test', httpOnly: true, secure: true,
@@ -277,7 +300,7 @@ test('handles provider balance, rate limits and timeout without losing the origi
     await expect(page.locator('#paragraph')).toHaveText('A quiet page for reading.');
 });
 
-test('GitHub localization runs locally and restores independently of body translations', async ({ browserApp }) => {
+test('GitHub localization runs locally and restores independently of body translations', { tag: '@popup' }, async ({ browserApp }) => {
     const { context, fixture, open, openPopup, page } = browserApp;
     fixture.html = req => `<nav aria-label="Repository"><a id="source" href="/acme/demo">Code</a>
         <a id="issues" href="/acme/demo/issues">Issues</a><a id="prs" href="/acme/demo/pulls">Pull requests</a>
