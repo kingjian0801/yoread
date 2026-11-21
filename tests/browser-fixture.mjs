@@ -9,7 +9,8 @@ import { resolve, join } from 'node:path';
 export { expect };
 
 export const test = base.extend({
-    browserApp: async ({}, use, info) => {
+    githubHostPermission: [true, { option: true }],
+    browserApp: async ({ githubHostPermission }, use, info) => {
         const temp = info.outputPath('browser');
         await mkdir(temp, { recursive: true });
         const key = join(temp, 'key.pem');
@@ -24,9 +25,10 @@ export const test = base.extend({
         await cp(resolve('dist/extension'), extension, { recursive: true });
         const manifestPath = join(extension, 'manifest.json');
         const manifest = JSON.parse(await readFile(manifestPath, 'utf8'));
-        // Playwright opens Chrome's popup as an extension page. Grant only its fixture hosts
-        // in this isolated copy to model the access normally granted by the toolbar click.
-        manifest.host_permissions.push('https://fixture.test/*', 'http://insecure.test/*', 'https://github.com/*');
+        // Model the toolbar's temporary access to the generic translation fixture pages.
+        manifest.host_permissions.push('https://fixture.test/*', 'http://insecure.test/*');
+        // Model an accepted browser prompt in tests that exercise enabled GitHub localization.
+        if (githubHostPermission) manifest.host_permissions.push('https://github.com/*');
         await writeFile(manifestPath, JSON.stringify(manifest));
 
         const messages = [];

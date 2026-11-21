@@ -322,6 +322,96 @@ test('GitHub localizes the Code tab for a repository named code', { tag: '@popup
     await expect(repoName).toHaveText('Code');
 });
 
+test('GitHub repository home localizes controls offline and keeps branch names', { tag: '@popup' }, async ({ browserApp }) => {
+    const { context, fixture, open, page } = browserApp;
+    fixture.html = `<nav aria-label="Repository">
+        <a data-tab-item="code" href="/acme/demo">Code</a>
+        <a data-tab-item="settings" href="/acme/demo/settings">Settings</a>
+        </nav>
+        <button id="ref-picker-repos-header-ref-selector" data-testid="anchor-button"
+            aria-label="Settings branch" aria-haspopup="true" aria-expanded="false"
+            aria-controls="refs" onclick="refs.hidden = false; this.setAttribute('aria-expanded', 'true')">
+            <span>Settings</span>
+        </button>
+        <div id="refs" hidden>Choose a branch</div>
+        <button id="unknown">Unlisted fixture control</button>
+        <article class="markdown-body"><p>Settings</p></article>`;
+    const popup = await open('github.com', '/acme/demo');
+    const code = page.locator('[data-tab-item="code"]');
+    const settings = page.locator('[data-tab-item="settings"]');
+    const branch = page.getByRole('button', { name: 'Settings branch' });
+    const requests = [];
+    context.on('request', request => {
+        if (/^https?:/.test(request.url())) requests.push(request.url());
+    });
+
+    await expect(code).toHaveText('Code');
+    await expect(popup.locator('#key-state')).toHaveText('未配置');
+    await context.setOffline(true);
+    await popup.locator('#github').check();
+    await expect(popup.locator('#github-status')).toContainText('已开启');
+    await expect(code).toHaveText('代码');
+    await expect(settings).toHaveText('设置');
+    await expect(settings).toHaveAttribute('href', '/acme/demo/settings');
+    await expect(branch).toHaveText('Settings');
+    await expect(page.locator('article')).toHaveText('Settings');
+    await expect(page.locator('#unknown')).toHaveText('Unlisted fixture control');
+    await branch.click();
+    await expect(page.locator('#refs')).toBeVisible();
+
+    expect(requests).toEqual([]);
+    expect(fixture.requests).toEqual([]);
+    await context.setOffline(false);
+    const other = await context.newPage();
+    await other.goto('https://fixture.test/acme/demo');
+    await expect(other.locator('[data-tab-item="settings"]')).toHaveText('Settings');
+    await other.close();
+
+    requests.length = 0;
+    await context.setOffline(true);
+    await popup.locator('#github').uncheck();
+    await expect(popup.locator('#github-status')).toContainText('已关闭');
+    await expect(code).toHaveText('Code');
+    await expect(settings).toHaveText('Settings');
+    await expect(branch).toHaveAttribute('aria-expanded', 'true');
+    await expect(page.locator('#refs')).toBeVisible();
+    expect(requests).toEqual([]);
+    expect(fixture.requests).toEqual([]);
+});
+
+test.describe('GitHub authorization', () => {
+    test.use({ githubHostPermission: false });
+
+    test('keeps the repository in English without site access', { tag: '@popup' }, async ({ browserApp }) => {
+        const { fixture, open, openPopup, page } = browserApp;
+        fixture.html = '<nav aria-label="Repository"><a href="/acme/demo">Code</a></nav>';
+        const popup = await open('github.com', '/acme/demo');
+        const code = page.getByRole('link', { name: 'Code' });
+        const toggle = popup.locator('#github');
+        await expect(toggle).not.toBeChecked();
+        expect(await popup.evaluate(() => chrome.permissions.contains({
+            origins: ['https://github.com/*'],
+        }))).toBe(false);
+
+        // Simulate canceling Chrome's native prompt, which Playwright cannot click.
+        await popup.evaluate(() => { chrome.permissions.request = async () => false; });
+        await toggle.click();
+        await expect(popup.locator('#github-status')).toContainText('已取消 GitHub 访问授权');
+        await expect(toggle).not.toBeChecked();
+        await expect(code).toBeVisible();
+
+        // The browser's real permission state still gates requests from the popup.
+        expect(await popup.evaluate(() => chrome.runtime.sendMessage({
+            type: 'github.set', enabled: true,
+        }))).toEqual({ ok: false, code: 'permission-denied' });
+        await page.reload();
+        await expect(code).toBeVisible();
+        const reopened = await openPopup();
+        await expect(reopened.locator('#github')).not.toBeChecked();
+        expect(fixture.requests).toEqual([]);
+    });
+});
+
 test('GitHub localization runs locally and restores independently of body translations', { tag: '@popup' }, async ({ browserApp }) => {
     const { context, fixture, open, openPopup, page } = browserApp;
     fixture.html = req => `<nav aria-label="Repository"><a id="source" href="/acme/demo">Code</a>
