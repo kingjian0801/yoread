@@ -22,3 +22,5 @@ codesign --verify --strict --deep dist/safari-app/Yoread.app
 4. 记录 macOS、Safari 和应用版本，以及授权、译文和恢复的结果。
 
 脚本生成使用本地签名的测试候选包。Mac App Store 渠道使用 Apple Developer Program 的分发签名，并以对应发布产物再次验收。 [Apple 分发指引](https://developer.apple.com/documentation/safariservices/distributing-your-safari-web-extension)
+
+Yoread 0.1.4 的签名候选包已在 macOS 26.6.2 的隔离 WebKit 扩展宿主运行。测试覆盖拒绝及允许 GitHub 访问、仓库首页汉化、关闭后恢复英文并移除权限。Safari 浏览器独立安装验收需要可用的 Apple Development 签名或经授权的隔离测试环境，仍待执行。 [GitHub 示例仓库](https://github.com/octocat/Hello-World)
