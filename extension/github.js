@@ -74,9 +74,10 @@
         if (!link) return false;
         const path = link.pathname.toLowerCase().replace(/\/+$/, '');
         if (link.origin !== location.origin || !path.startsWith(repoPath + '/')) {
-            // The native "Code" repository tab links to its own repository root.
+            // GitHub marks its Code tab, which can share a label and URL with the repository name.
             return path !== repoPath || !/^(?:Code|代码)$/.test(link.textContent.trim()) ||
-                path.split('/').at(-1) === 'code';
+                (path.split('/').at(-1) === 'code' &&
+                    (link.origin !== location.origin || link.dataset.tabItem !== 'code'));
         }
         return /^\/(?:tree|commit|blob|releases\/tag|compare)\//.test(path.slice(repoPath.length));
     }

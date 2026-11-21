@@ -300,6 +300,28 @@ test('handles provider balance, rate limits and timeout without losing the origi
     await expect(page.locator('#paragraph')).toHaveText('A quiet page for reading.');
 });
 
+test('GitHub localizes the Code tab for a repository named code', { tag: '@popup' }, async ({ browserApp }) => {
+    const { fixture, open, page } = browserApp;
+    fixture.html = `<nav aria-label="Repository"><ul><li>
+        <a href="/acme/code" aria-current="page" data-tab-item="code"><span>Code</span></a>
+        </li></ul></nav>
+        <div id="repository-container-header"><a href="/acme/code">Code</a></div>`;
+    const popup = await open('github.com', '/acme/code');
+    const toggle = popup.locator('#github');
+    const codeTab = page.getByRole('navigation', { name: 'Repository' }).getByRole('link');
+    const repoName = page.locator('#repository-container-header').getByRole('link');
+
+    await toggle.check();
+    await expect(popup.locator('#github-status')).toContainText('已开启');
+    await expect(codeTab).toHaveText('代码');
+    await expect(repoName).toHaveText('Code');
+
+    await toggle.uncheck();
+    await expect(popup.locator('#github-status')).toContainText('已关闭');
+    await expect(codeTab).toHaveText('Code');
+    await expect(repoName).toHaveText('Code');
+});
+
 test('GitHub localization runs locally and restores independently of body translations', { tag: '@popup' }, async ({ browserApp }) => {
     const { context, fixture, open, openPopup, page } = browserApp;
     fixture.html = req => `<nav aria-label="Repository"><a id="source" href="/acme/demo">Code</a>
