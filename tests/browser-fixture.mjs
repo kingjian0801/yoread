@@ -10,7 +10,8 @@ export { expect };
 
 export const test = base.extend({
     githubHostPermission: [true, { option: true }],
-    browserApp: async ({ githubHostPermission }, use, info) => {
+    extensionTarget: ['chrome', { option: true }],
+    browserApp: async ({ githubHostPermission, extensionTarget }, use, info) => {
         const temp = info.outputPath('browser');
         await mkdir(temp, { recursive: true });
         const key = join(temp, 'key.pem');
@@ -22,13 +23,19 @@ export const test = base.extend({
             .export({ type: 'spki', format: 'der' })).digest('base64');
 
         const extension = join(temp, 'extension');
-        await cp(resolve('dist/extension'), extension, { recursive: true });
+        if (extensionTarget === 'chrome') {
+            await cp(resolve('dist/extension'), extension, { recursive: true });
+        } else {
+            execFileSync(process.execPath, ['scripts/build-github-only.mjs', extensionTarget, extension]);
+        }
         const manifestPath = join(extension, 'manifest.json');
         const manifest = JSON.parse(await readFile(manifestPath, 'utf8'));
+        const hosts = manifest.host_permissions ?? [];
         // Model the toolbar's temporary access to the generic translation fixture pages.
-        manifest.host_permissions.push('https://fixture.test/*', 'http://insecure.test/*');
-        // Model an accepted browser prompt in tests that exercise enabled GitHub localization.
-        if (githubHostPermission) manifest.host_permissions.push('https://github.com/*');
+        if (extensionTarget === 'chrome') hosts.push('https://fixture.test/*', 'http://insecure.test/*');
+        // Model an accepted native prompt in the headless browser.
+        if (githubHostPermission) hosts.push('https://github.com/*');
+        manifest.host_permissions = hosts;
         await writeFile(manifestPath, JSON.stringify(manifest));
 
         const messages = [];
@@ -97,7 +104,7 @@ export const test = base.extend({
                 await page.bringToFront();
                 const popup = await context.newPage();
                 await popup.goto(`chrome-extension://${extensionId}/popup.html`);
-                await expect(popup.locator('#save-key')).toBeEnabled();
+                await expect(popup.locator(extensionTarget === 'chrome' ? '#save-key' : '#github')).toBeEnabled();
                 return popup;
             };
             const open = async (host = 'fixture.test', path = '/') => {

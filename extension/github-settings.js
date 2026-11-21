@@ -94,7 +94,6 @@ export function createGithubSettings(api) {
         }
     });
 
-
     async function read() {
         const [github, { githubMode }] = await Promise.all([restoreGithub(), local.get('githubMode')]);
         return success({ github, githubMode: githubModeOf(githubMode) });
