@@ -18,3 +18,5 @@ node scripts/build-github-only.mjs safari
 在扩展弹窗开启 GitHub 汉化并允许站点访问。在一个公开仓库核对 `Code` 显示为「代码」，README 和分支名保持原样。关闭开关后检查导航恢复英文。
 
 Windows 与 macOS 的正式发布包验收使用 Edge Add-ons 的公开安装入口。
+
+macOS 原生封装和安装步骤见 [Safari 候选包](safari-candidate.md)。
