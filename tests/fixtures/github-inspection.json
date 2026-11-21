@@ -1,0 +1,17 @@
+[
+    {
+        "pageType": "repository",
+        "url": "https://github.com/acme/demo",
+        "controls": [
+            { "location": "#inspect-snapshot", "source": "Inspect snapshot", "rendered": "Inspect snapshot" },
+            { "location": "#snapshot-menu-item", "source": "Inspect snapshot", "rendered": "Inspect snapshot" }
+        ]
+    },
+    {
+        "pageType": "repository/issues",
+        "url": "https://github.com/acme/demo/issues",
+        "controls": [
+            { "location": "[href$='/issues/new']", "source": "New issue", "rendered": "New issue" }
+        ]
+    }
+]
