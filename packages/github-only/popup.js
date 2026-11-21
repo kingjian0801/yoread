@@ -44,8 +44,18 @@ mode.addEventListener('change', () => {
     void save(() => api.runtime.sendMessage({ type: 'github.mode.set', mode: mode.value }), '汉化模式已更新。');
 });
 
-api.runtime.sendMessage({ type: 'settings.get' }).then(reply => {
-    if (!reply?.ok) throw new Error('Settings unavailable');
-    state = reply;
-    render();
-}).catch(() => { status.textContent = '无法读取 GitHub 汉化设置。请重新打开。'; });
+async function readSettings() {
+    // Safari's background page may still be starting when the popup first asks for settings.
+    for (const delay of [0, 100, 300, 900]) {
+        if (delay) await new Promise(resolve => setTimeout(resolve, delay));
+        const reply = await api.runtime.sendMessage({ type: 'settings.get' }).catch(() => undefined);
+        if (reply?.ok) {
+            state = reply;
+            render();
+            return;
+        }
+    }
+    status.textContent = '无法读取 GitHub 汉化设置。请重新打开。';
+}
+
+void readSettings();
