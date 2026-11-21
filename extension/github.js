@@ -23,7 +23,8 @@
     const identifiers = [
         '.AppHeader-context', '.branch-name', '[class*="branchName"]',
         '.commit-ref', '[class*="CommitRef"]',
-        '[data-testid*="branch"]', '[data-testid*="ref-name"]', '.commit-author',
+        '[data-testid*="branch"]', '[data-testid*="ref-name"]',
+        '#ref-picker-repos-header-ref-selector', '.commit-author',
         '.commit-title', '.sha', '[data-commit-sha]', 'relative-time',
         'a[data-hovercard-type="user"]', 'a[data-hovercard-type="repository"]',
         '.user-mention', '.author', '.repo-and-owner', '.react-directory-filename-column',
