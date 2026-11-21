@@ -6,8 +6,16 @@
     const terms = globalThis.yoreadGitHubTerms ?? {};
     if (!dictionary) return;
 
+    const reactHeader = 'react-partial[partial-name="global-nav-bar"], react-partial[partial-name="marketing-header"]';
+    const globalHeader = `.AppHeader, header.GlobalNav, ${reactHeader}`;
+    const headerLabelControls = 'header[aria-label], button[aria-label]';
+    const headerLabels = {
+        'Global navigation menu': '全局导航菜单',
+        'Open quick search dialog, type / to search': '打开快速搜索对话框，键入 / 搜索',
+        'Search or jump to, type / to search': '搜索或跳转到，键入 / 搜索',
+    };
     const fixed = [
-        '.AppHeader', '.UnderlineNav', '.tabnav-tabs', 'nav[aria-label="Repository"]',
+        globalHeader, '.UnderlineNav', '.tabnav-tabs', 'nav[aria-label="Repository"]',
         'nav[aria-label="Repository navigation"]', 'nav[data-testid="repository-navbar"]',
         'a[data-dd-action-name^="pull_requests.navigation."]',
         '#repository-container-header', 'button', 'summary', '[role="button"]',
@@ -39,6 +47,7 @@
         '[hidden]', '[inert]', '[aria-hidden="true"]', '[translate="no"]',
     ].join(',');
     const changed = new Map();
+    const changedLabels = new Map();
     const queued = new Set();
     const cache = new Map();
     let enabled = false;
@@ -71,6 +80,20 @@
             if (node.isConnected && node.data === rendered) node.data = original;
         }
         changed.clear();
+        for (const [element, change] of changedLabels) restoreLabel(element, change);
+        changedLabels.clear();
+    }
+
+    function restoreLabel(element, { original, rendered }) {
+        if (element.isConnected && element.getAttribute('aria-label') === rendered) {
+            element.setAttribute('aria-label', original);
+        }
+    }
+
+    function headerReady(header) {
+        // GitHub's react-partial adds "loaded" after the React commit.
+        const partial = header.closest(reactHeader);
+        return partial ? partial.classList.contains('loaded') : document.readyState === 'complete';
     }
 
     function isIdentifier(element) {
@@ -92,6 +115,8 @@
         const element = node.parentElement;
         if (!page || !element?.closest(fixed) || element.closest(protectedContent) ||
             isIdentifier(element)) return false;
+        const header = element.closest(globalHeader);
+        if (header && (!headerReady(header) || element.closest('qbsearch-input:not(:defined)'))) return false;
         return !ignore || !element.closest(ignore);
     }
 
@@ -146,6 +171,24 @@
         node.data = rendered;
     }
 
+    function ownsLabel(element) {
+        const header = element.closest(globalHeader);
+        return page && header && headerReady(header) && element.matches(headerLabelControls) &&
+            !element.closest(protectedContent) && !element.closest('qbsearch-input:not(:defined)') &&
+            (!ignore || !element.closest(ignore));
+    }
+
+    function translateLabel(element) {
+        if (!ownsLabel(element)) return;
+        const original = element.getAttribute('aria-label');
+        if (changedLabels.get(element)?.rendered === original) return;
+        changedLabels.delete(element);
+        if (!Object.hasOwn(headerLabels, original)) return;
+        const rendered = headerLabels[original];
+        changedLabels.set(element, { original, rendered });
+        element.setAttribute('aria-label', rendered);
+    }
+
     function scan(root) {
         if (!root?.isConnected || !page) return;
         if (root.nodeType === Node.TEXT_NODE) return translate(root);
@@ -153,6 +196,12 @@
         const scopes = root.closest(fixed) ? [root] : [...root.querySelectorAll(fixed)]
             .filter(scope => !scope.parentElement?.closest(fixed));
         for (const scope of scopes) {
+            const header = scope.closest(globalHeader);
+            if (header && !headerReady(header)) continue;
+            if (header) {
+                if (scope.matches(headerLabelControls)) translateLabel(scope);
+                for (const element of scope.querySelectorAll(headerLabelControls)) translateLabel(element);
+            }
             const walker = document.createTreeWalker(scope, NodeFilter.SHOW_TEXT);
             while (walker.nextNode()) translate(walker.currentNode);
         }
@@ -170,6 +219,11 @@
             if (node.isConnected && owns(node)) continue;
             if (node.isConnected && node.data === rendered) node.data = original;
             changed.delete(node);
+        }
+        for (const [element, change] of changedLabels) {
+            if (element.isConnected && ownsLabel(element)) continue;
+            restoreLabel(element, change);
+            changedLabels.delete(element);
         }
         for (const root of queued) scan(root);
         queued.clear();
@@ -189,6 +243,15 @@
         for (const record of records) {
             if (record.type === 'characterData') {
                 if (changed.get(record.target)?.rendered !== record.target.data) schedule(record.target);
+            } else if (record.type === 'attributes') {
+                if (record.attributeName === 'class' && record.target.matches(reactHeader)) {
+                    schedule(record.target);
+                } else if (record.attributeName === 'aria-label' &&
+                    (changedLabels.has(record.target) ||
+                        (record.target.matches(headerLabelControls) && record.target.closest(globalHeader))) &&
+                    changedLabels.get(record.target)?.rendered !== record.target.getAttribute('aria-label')) {
+                    schedule(record.target);
+                }
             } else {
                 for (const node of record.addedNodes) schedule(node);
                 if (record.removedNodes.length && timer === undefined) timer = setTimeout(flush, 0);
@@ -196,6 +259,9 @@
         }
     });
     const onNavigation = () => schedule(document.body);
+    const onHeaderReady = () => {
+        if (enabled) document.querySelectorAll(globalHeader).forEach(schedule);
+    };
 
     function setLocalization(next, nextMode = mode) {
         const selection = nextMode === 'professional' ? 'professional' : 'beginner';
@@ -211,6 +277,7 @@
         enabled = next;
         if (!enabled) {
             observer.disconnect();
+            removeEventListener('load', onHeaderReady);
             globalThis.navigation?.removeEventListener('currententrychange', onNavigation);
             removeEventListener('popstate', onNavigation);
             clearTimeout(timer);
@@ -221,7 +288,14 @@
         }
         readRoute();
         globalThis.yoreadPage?.release?.(excludes);
-        observer.observe(document.documentElement, { subtree: true, childList: true, characterData: true });
+        observer.observe(document.documentElement, {
+            subtree: true, childList: true, characterData: true,
+            attributeFilter: ['class', 'aria-label'],
+        });
+        if (document.readyState !== 'complete') addEventListener('load', onHeaderReady, { once: true });
+        if (document.querySelector('qbsearch-input:not(:defined)')) {
+            void customElements.whenDefined('qbsearch-input').then(onHeaderReady);
+        }
         globalThis.navigation?.addEventListener('currententrychange', onNavigation);
         addEventListener('popstate', onNavigation);
         scan(document.body);

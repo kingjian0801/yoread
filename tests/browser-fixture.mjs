@@ -88,7 +88,7 @@ export const test = base.extend({
         try {
             const rules = ['api.deepseek.com', 'fixture.test', 'github.com'].map(host => `MAP ${host} 127.0.0.1:${port}`);
             rules.push(`MAP insecure.test 127.0.0.1:${insecure.address().port}`);
-            context = await chromium.launchPersistentContext(join(temp, 'profile'), {
+            const launch = () => chromium.launchPersistentContext(join(temp, 'profile'), {
                 channel: 'chromium',
                 viewport: { width: 380, height: 660 },
                 args: [
@@ -97,9 +97,16 @@ export const test = base.extend({
                     `--ignore-certificate-errors-spki-list=${pin}`, '--disable-background-networking',
                 ],
             });
+            context = await launch();
             const [worker = await context.waitForEvent('serviceworker')] = context.serviceWorkers();
             const extensionId = new URL(worker.url()).hostname;
-            const [page = await context.newPage()] = context.pages();
+            let [page = await context.newPage()] = context.pages();
+            const restart = async () => {
+                await context.close();
+                context = await launch();
+                [page = await context.newPage()] = context.pages();
+                return page;
+            };
             const openPopup = async () => {
                 await page.bringToFront();
                 const popup = await context.newPage();
@@ -112,7 +119,7 @@ export const test = base.extend({
                 await page.goto(`${scheme}://${host}${path}`);
                 return openPopup();
             };
-            await use({ fixture, page, open, openPopup, context, extensionId });
+            await use({ fixture, page, open, openPopup, restart, context, extensionId });
         } finally {
             await context?.close();
             server.closeAllConnections();
