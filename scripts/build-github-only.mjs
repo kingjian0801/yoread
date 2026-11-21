@@ -1,6 +1,7 @@
 import { cp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { terminologyScript } from './github-terminology.mjs';
 
 const [browser, output] = process.argv.slice(2);
 if (!['edge', 'firefox', 'safari'].includes(browser)) {
@@ -11,6 +12,7 @@ if (!['edge', 'firefox', 'safari'].includes(browser)) {
 const root = fileURLToPath(new URL('..', import.meta.url));
 const source = join(root, 'extension');
 const target = output ? resolve(output) : join(root, 'dist', browser);
+const terminology = terminologyScript();
 const { name, version, action, optional_host_permissions } =
     JSON.parse(await readFile(join(source, 'manifest.json'), 'utf8'));
 const manifest = {
@@ -39,9 +41,10 @@ await mkdir(target);
 try {
     await cp(join(root, 'packages', 'github-only'), target, { recursive: true });
     await cp(join(source, 'vendor'), join(target, 'vendor'), { recursive: true });
-    for (const file of ['github.js', 'github-terms.js', 'github-settings.js']) {
+    for (const file of ['github.js', 'github-settings.js']) {
         await cp(join(source, file), join(target, file));
     }
+    await writeFile(join(target, 'github-terms.js'), terminology);
     for (const license of ['LICENSE', 'LICENSE-MIT-ORIGINAL']) await cp(join(root, license), join(target, license));
     await writeFile(join(target, 'manifest.json'), JSON.stringify(manifest, null, 2) + '\n');
 } catch (error) {

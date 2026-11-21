@@ -10,6 +10,12 @@
     const pendingSearch = 'qbsearch-input:not(:defined)';
     const headerLabelControls = 'header[aria-label], button[aria-label]';
     const repositoryNav = 'nav[aria-label="Repository"], nav[aria-label="Repository navigation"], nav[data-testid="repository-navbar"]';
+    const commitHistoryControl = 'a[data-component="LinkButton"][href*="/commits/"]';
+    const commitHistoryLabel = ':scope > [data-component="text"], :scope > [data-component="buttonContent"] > [data-component="text"]';
+    const commitCount = /^(?:\d+|\d{1,3}(?:,\d{3})+) [Cc]ommits?$/;
+    const relativeTime = 'relative-time[datetime]';
+    const localizedLanguage = 'zh-CN';
+    const contextAttributes = ['hidden', 'inert', 'aria-hidden', 'translate', 'href'];
     const fixed = [
         globalHeader, repositoryNav, '.UnderlineNav', '.tabnav-tabs',
         'a[data-dd-action-name^="pull_requests.navigation."]',
@@ -17,7 +23,7 @@
         'a.btn', 'a.Button', 'a[href$="/issues/new"]', 'a[href$="/issues/new/choose"]',
         '[role="tab"]', '[role="menuitem"]', '[role="menuitemcheckbox"]',
         '.State', '.StateLabel', '[data-testid="issue-state-badge"]',
-        '[data-testid="state-label"]', '[class*="StateLabel"]',
+        '[data-testid="state-label"]', '[class*="StateLabel"]', commitHistoryControl,
     ].join(',');
     const userContent = [
         'article', '.markdown-body', '.js-comment-body', '.comment-body',
@@ -29,20 +35,22 @@
         '.commit-ref', '[class*="CommitRef"]',
         '[data-testid*="branch"]', '[data-testid*="ref-name"]',
         '#ref-picker-repos-header-ref-selector', '.commit-author',
-        '.commit-title', '.sha', '[data-commit-sha]', 'relative-time',
+        '.commit-title', '.sha', '[data-commit-sha]',
         'a[data-hovercard-type="user"]', 'a[data-hovercard-type="repository"]',
         '.user-mention', '.author', '.repo-and-owner', '.react-directory-filename-column',
         'nav[data-component="Breadcrumbs"]', 'a[href*="/commit/"]',
         'strong[itemprop="name"]', '[data-testid="repository-name"]',
     ].join(',');
-    const protectedContent = [
+    const protectedContexts = [
         userContent, identifiers,
         'input', 'textarea', 'select', 'option', '[contenteditable]',
         'script', 'style', 'template', 'code', 'pre', 'kbd', 'samp', 'svg',
         '[hidden]', '[inert]', '[aria-hidden="true"]', '[translate="no"]',
     ].join(',');
+    const protectedContent = `${protectedContexts},relative-time`;
     const changed = new Map();
     const changedLabels = new Map();
+    const changedTimes = new Map();
     const queued = new Set();
     const cache = new Map();
     let enabled = false;
@@ -50,6 +58,7 @@
     let terms = globalThis.yoreadGitHubTerms;
     let receivedUpdate = false;
     let route;
+    let pageKey;
     let page;
     let repoPath;
     let ignore;
@@ -57,6 +66,8 @@
     let searchTimer;
 
     function readRoute() {
+        clearTimeout(searchTimer);
+        searchTimer = undefined;
         restore();
         cache.clear();
         route = location.pathname;
@@ -64,27 +75,29 @@
         const kind = route.match(upstream.conf.rePagePathRepo)?.[1];
         const supported = !section || (section === kind && ['issues', 'pull', 'pulls'].includes(kind));
         const reserved = owner && ('/' + owner.toLowerCase() + '/').match(upstream.conf.rePagePath)?.[1] === owner.toLowerCase();
-        const key = kind ? `repository/${kind}` : 'repository';
-        page = owner && repo && !reserved && supported ? dictionary[key] : null;
+        pageKey = kind ? `repository/${kind}` : 'repository';
+        page = owner && repo && !reserved && supported ? dictionary[pageKey] : null;
         repoPath = page ? `/${owner}/${repo}`.toLowerCase() : '';
         // The upstream feature varies these exclusions by page and combines its global entries.
         const skip = upstream.conf.ignoreSelectorPage;
-        ignore = [...(skip['*'] || []), ...(skip[key] || [])].join(',');
+        ignore = [...(skip['*'] || []), ...(skip[pageKey] || [])].join(',');
     }
 
     function restore() {
         for (const [node, { original, rendered }] of changed) {
-            if (node.isConnected && node.data === rendered) node.data = original;
+            if (node.data === rendered) node.data = original;
         }
         changed.clear();
-        for (const [element, change] of changedLabels) restoreLabel(element, change);
+        for (const [element, change] of changedLabels) restoreAttribute(element, 'aria-label', change);
         changedLabels.clear();
+        for (const [element, change] of changedTimes) restoreAttribute(element, 'lang', change);
+        changedTimes.clear();
     }
 
-    function restoreLabel(element, { original, rendered }) {
-        if (element.isConnected && element.getAttribute('aria-label') === rendered) {
-            element.setAttribute('aria-label', original);
-        }
+    function restoreAttribute(element, attribute, { original, rendered }) {
+        if (element.getAttribute(attribute) !== rendered) return;
+        if (original === null) element.removeAttribute(attribute);
+        else element.setAttribute(attribute, original);
     }
 
     function headerReady(header) {
@@ -112,6 +125,12 @@
         const element = node.parentElement;
         if (!page || !element?.closest(fixed) || element.closest(protectedContent) ||
             isIdentifier(element)) return false;
+        const history = element.closest(commitHistoryControl);
+        if (history) {
+            const label = history.querySelector(commitHistoryLabel);
+            if (pageKey !== 'repository' || !history.pathname.toLowerCase().startsWith(repoPath + '/commits/') ||
+                !label?.contains(node) || label.textContent.trim() !== node.data.trim()) return false;
+        }
         const header = element.closest(globalHeader);
         if (header && (element.closest(pendingSearch) ||
             (!element.closest(repositoryNav) && !headerReady(header)))) return false;
@@ -122,31 +141,32 @@
         if (!enabled) return false;
         if (route !== location.pathname) readRoute();
         const element = node.parentElement;
-        return Boolean(page && element && (element.closest(identifiers) ||
+        return Boolean(page && element && (element.closest(identifiers) || element.closest('relative-time') ||
             (element.closest(fixed) && !element.closest(userContent))));
     }
 
-    function lookup(source) {
-        if (terms && Object.hasOwn(terms, source)) {
-            const override = terms[source][mode];
+    function lookup(source, exactOnly = false) {
+        const scopedTerms = globalThis.yoreadGitHubPageTerms?.[pageKey];
+        for (const entries of [scopedTerms, terms]) {
+            if (!entries || !Object.hasOwn(entries, source)) continue;
+            const override = entries[source][mode];
             if (typeof override === 'string') return override;
         }
-        if (cache.has(source)) return cache.get(source);
         const common = dictionary.public;
         const localValue = Object.hasOwn(page.static || {}, source) ? page.static[source] : null;
         let result = typeof localValue === 'string' ? localValue :
             (Object.hasOwn(common.static || {}, source) ? common.static[source] : null);
-        if (typeof result !== 'string') {
-            for (const [pattern, replacement] of [...(page.regexp || []), ...(common.regexp || [])]) {
-                try {
-                    const next = source.replace(pattern, replacement);
-                    if (next !== source) {
-                        result = next;
-                        break;
-                    }
-                } catch {
-                    // Some upstream contextual rules depend on userscript-only globals.
+        if (typeof result === 'string' || exactOnly) return result;
+        if (cache.has(source)) return cache.get(source);
+        for (const [pattern, replacement] of [...(page.regexp || []), ...(common.regexp || [])]) {
+            try {
+                const next = source.replace(pattern, replacement);
+                if (next !== source) {
+                    result = next;
+                    break;
                 }
+            } catch {
+                // Some upstream contextual rules depend on userscript-only globals.
             }
         }
         if (cache.size >= 1000) cache.clear();
@@ -154,19 +174,21 @@
         return result;
     }
 
-    function translate(node) {
+    function translate(node, refreshTerms = false) {
         if (!owns(node)) return;
-        if (changed.get(node)?.rendered === node.data) return;
+        const previous = changed.get(node);
+        const stillLocalized = previous?.rendered === node.data;
+        if (stillLocalized && !refreshTerms) return;
+        const original = stillLocalized ? previous.original : node.data;
         changed.delete(node);
-        const original = node.data;
         const trimmed = original.trim();
         if (!/[A-Za-z]/.test(trimmed) || trimmed.length > 260) return;
         const source = trimmed.replace(/\s+/g, ' ');
-        const value = lookup(source);
-        if (!value || value === source) return;
-        const rendered = original.replace(trimmed, () => value);
-        changed.set(node, { original, rendered });
-        node.data = rendered;
+        const separateCountLabel = node.parentElement.closest(commitHistoryControl);
+        const value = lookup(source, Boolean(separateCountLabel && !commitCount.test(source)));
+        const rendered = value && value !== source ? original.replace(trimmed, () => value) : original;
+        if (rendered !== original) changed.set(node, { original, rendered });
+        if (node.data !== rendered) node.data = rendered;
     }
 
     function ownsLabel(element) {
@@ -188,10 +210,30 @@
         element.setAttribute('aria-label', rendered);
     }
 
-    function scan(root) {
+    function ownsTime(element) {
+        if (!page || !element.matches(relativeTime) || element.closest(protectedContexts) ||
+            (ignore && element.closest(ignore)) || !Number.isFinite(Date.parse(element.getAttribute('datetime')))) {
+            return false;
+        }
+        const header = element.closest(globalHeader);
+        return !header || headerReady(header);
+    }
+
+    function localizeTime(element) {
+        if (!ownsTime(element)) return;
+        const original = element.getAttribute('lang');
+        if (original === localizedLanguage) return;
+        // Let GitHub's component format, update and describe the timestamp itself.
+        changedTimes.set(element, { original, rendered: localizedLanguage });
+        element.setAttribute('lang', localizedLanguage);
+    }
+
+    function scan(root, refreshTerms = false) {
         if (!root?.isConnected || !page) return;
-        if (root.nodeType === Node.TEXT_NODE) return translate(root);
+        if (root.nodeType === Node.TEXT_NODE) return translate(root, refreshTerms);
         if (root.nodeType !== Node.ELEMENT_NODE) return;
+        if (root.matches(relativeTime)) localizeTime(root);
+        for (const time of root.querySelectorAll(relativeTime)) localizeTime(time);
         const scopes = root.closest(fixed) ? [root] : [...root.querySelectorAll(fixed)]
             .filter(scope => !scope.parentElement?.closest(fixed));
         for (const scope of scopes) {
@@ -203,7 +245,7 @@
                 for (const element of scope.querySelectorAll(headerLabelControls)) translateLabel(element);
             }
             const walker = document.createTreeWalker(scope, NodeFilter.SHOW_TEXT);
-            while (walker.nextNode()) translate(walker.currentNode);
+            while (walker.nextNode()) translate(walker.currentNode, refreshTerms);
         }
     }
 
@@ -230,13 +272,18 @@
         }
         for (const [node, { original, rendered }] of changed) {
             if (node.isConnected && owns(node)) continue;
-            if (node.isConnected && node.data === rendered) node.data = original;
+            if (node.data === rendered) node.data = original;
             changed.delete(node);
         }
         for (const [element, change] of changedLabels) {
             if (element.isConnected && ownsLabel(element)) continue;
-            restoreLabel(element, change);
+            restoreAttribute(element, 'aria-label', change);
             changedLabels.delete(element);
+        }
+        for (const [element, change] of changedTimes) {
+            if (element.isConnected && ownsTime(element)) continue;
+            restoreAttribute(element, 'lang', change);
+            changedTimes.delete(element);
         }
         for (const root of queued) scan(root);
         queued.clear();
@@ -264,10 +311,21 @@
                         (record.target.matches(headerLabelControls) && record.target.closest(globalHeader))) &&
                     changedLabels.get(record.target)?.rendered !== record.target.getAttribute('aria-label')) {
                     schedule(record.target);
+                } else if (record.target.matches('relative-time') && (record.attributeName === 'datetime' ||
+                    (record.attributeName === 'lang' &&
+                        changedTimes.get(record.target)?.rendered !== record.target.getAttribute('lang')))) {
+                    schedule(record.target);
+                } else if (contextAttributes.includes(record.attributeName)) {
+                    schedule(record.target);
                 }
             } else {
-                for (const node of record.addedNodes) schedule(node);
-                if (record.removedNodes.length && timer === undefined) timer = setTimeout(flush, 0);
+                if (record.removedNodes.length && record.target.closest?.(commitHistoryControl)) {
+                    // The surviving count can become eligible when its label loses a sibling.
+                    schedule(record.target);
+                } else {
+                    for (const node of record.addedNodes) schedule(node);
+                    if (record.removedNodes.length && timer === undefined) timer = setTimeout(flush, 0);
+                }
             }
         }
     });
@@ -284,10 +342,7 @@
         terms = nextTerms;
         mode = selection;
         if (enabled === next) {
-            if (enabled && (modeChanged || termsChanged)) {
-                restore();
-                scan(document.body);
-            }
+            if (enabled && (modeChanged || termsChanged)) scan(document.body, true);
             return;
         }
         enabled = next;
@@ -301,6 +356,7 @@
             timer = undefined;
             searchTimer = undefined;
             queued.clear();
+            cache.clear();
             restore();
             return;
         }
@@ -308,7 +364,7 @@
         globalThis.yoreadPage?.release?.(excludes);
         observer.observe(document.documentElement, {
             subtree: true, childList: true, characterData: true,
-            attributeFilter: ['class', 'aria-label'],
+            attributeFilter: ['class', 'aria-label', 'datetime', 'lang', ...contextAttributes],
         });
         if (document.readyState !== 'complete') addEventListener('load', onHeaderReady, { once: true });
         globalThis.navigation?.addEventListener('currententrychange', onNavigation);
