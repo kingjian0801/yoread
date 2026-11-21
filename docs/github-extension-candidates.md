@@ -19,4 +19,7 @@ node scripts/build-github-only.mjs safari
 
 Windows 与 macOS 的正式发布包验收使用 Edge Add-ons 的公开安装入口。
 
+Yoread 0.1.4 候选包已在独立的 macOS Microsoft Edge 158.0.4370.33 配置中通过公开仓库授权、汉化、专业档和关闭恢复检查。关闭时 GitHub 站点权限被移除。 [GitHub 示例仓库](https://github.com/octocat/Hello-World)
+
+Firefox 的 XPI 构建、临时安装与重启验证见 [Firefox 候选包](firefox-preview.md)。
 macOS 原生封装和安装步骤见 [Safari 候选包](safari-candidate.md)。

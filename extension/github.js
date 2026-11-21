@@ -3,20 +3,15 @@
     if (globalThis.yoreadGitHub || location.origin !== 'https://github.com') return;
     const upstream = globalThis.I18N;
     const dictionary = upstream?.['zh-CN'];
-    const terms = globalThis.yoreadGitHubTerms ?? {};
     if (!dictionary) return;
 
     const reactHeader = 'react-partial[partial-name="global-nav-bar"], react-partial[partial-name="marketing-header"]';
     const globalHeader = `.AppHeader, header.GlobalNav, ${reactHeader}`;
+    const pendingSearch = 'qbsearch-input:not(:defined)';
     const headerLabelControls = 'header[aria-label], button[aria-label]';
-    const headerLabels = {
-        'Global navigation menu': '全局导航菜单',
-        'Open quick search dialog, type / to search': '打开快速搜索对话框，键入 / 搜索',
-        'Search or jump to, type / to search': '搜索或跳转到，键入 / 搜索',
-    };
+    const repositoryNav = 'nav[aria-label="Repository"], nav[aria-label="Repository navigation"], nav[data-testid="repository-navbar"]';
     const fixed = [
-        globalHeader, '.UnderlineNav', '.tabnav-tabs', 'nav[aria-label="Repository"]',
-        'nav[aria-label="Repository navigation"]', 'nav[data-testid="repository-navbar"]',
+        globalHeader, repositoryNav, '.UnderlineNav', '.tabnav-tabs',
         'a[data-dd-action-name^="pull_requests.navigation."]',
         '#repository-container-header', 'button', 'summary', '[role="button"]',
         'a.btn', 'a.Button', 'a[href$="/issues/new"]', 'a[href$="/issues/new/choose"]',
@@ -52,12 +47,14 @@
     const cache = new Map();
     let enabled = false;
     let mode = 'beginner';
+    let terms = globalThis.yoreadGitHubTerms;
     let receivedUpdate = false;
     let route;
     let page;
     let repoPath;
     let ignore;
     let timer;
+    let searchTimer;
 
     function readRoute() {
         restore();
@@ -116,7 +113,8 @@
         if (!page || !element?.closest(fixed) || element.closest(protectedContent) ||
             isIdentifier(element)) return false;
         const header = element.closest(globalHeader);
-        if (header && (!headerReady(header) || element.closest('qbsearch-input:not(:defined)'))) return false;
+        if (header && (element.closest(pendingSearch) ||
+            (!element.closest(repositoryNav) && !headerReady(header)))) return false;
         return !ignore || !element.closest(ignore);
     }
 
@@ -129,7 +127,7 @@
     }
 
     function lookup(source) {
-        if (Object.hasOwn(terms, source)) {
+        if (terms && Object.hasOwn(terms, source)) {
             const override = terms[source][mode];
             if (typeof override === 'string') return override;
         }
@@ -174,7 +172,7 @@
     function ownsLabel(element) {
         const header = element.closest(globalHeader);
         return page && header && headerReady(header) && element.matches(headerLabelControls) &&
-            !element.closest(protectedContent) && !element.closest('qbsearch-input:not(:defined)') &&
+            !element.closest(protectedContent) && !element.closest(pendingSearch) &&
             (!ignore || !element.closest(ignore));
     }
 
@@ -183,7 +181,8 @@
         const original = element.getAttribute('aria-label');
         if (changedLabels.get(element)?.rendered === original) return;
         changedLabels.delete(element);
-        if (!Object.hasOwn(headerLabels, original)) return;
+        const headerLabels = globalThis.yoreadGitHubHeaderLabels;
+        if (!headerLabels || !Object.hasOwn(headerLabels, original)) return;
         const rendered = headerLabels[original];
         changedLabels.set(element, { original, rendered });
         element.setAttribute('aria-label', rendered);
@@ -197,14 +196,28 @@
             .filter(scope => !scope.parentElement?.closest(fixed));
         for (const scope of scopes) {
             const header = scope.closest(globalHeader);
-            if (header && !headerReady(header)) continue;
-            if (header) {
+            if (header && headerReady(header)) {
+                const search = scope.closest(pendingSearch) ?? scope.querySelector(pendingSearch);
+                if (search) waitForSearch(search);
                 if (scope.matches(headerLabelControls)) translateLabel(scope);
                 for (const element of scope.querySelectorAll(headerLabelControls)) translateLabel(element);
             }
             const walker = document.createTreeWalker(scope, NodeFilter.SHOW_TEXT);
             while (walker.nextNode()) translate(walker.currentNode);
         }
+    }
+
+    function waitForSearch(element) {
+        if (searchTimer !== undefined) return;
+        // A content script cannot observe the page's custom-element registry directly.
+        const deadline = Date.now() + 15_000;
+        function check() {
+            searchTimer = undefined;
+            if (!enabled || !element.isConnected) return;
+            if (element.matches(':defined')) schedule(element);
+            else if (Date.now() < deadline) searchTimer = setTimeout(check, 80);
+        }
+        searchTimer = setTimeout(check, 80);
     }
 
     function flush() {
@@ -266,9 +279,12 @@
     function setLocalization(next, nextMode = mode) {
         const selection = nextMode === 'professional' ? 'professional' : 'beginner';
         const modeChanged = mode !== selection;
+        const nextTerms = globalThis.yoreadGitHubTerms;
+        const termsChanged = terms !== nextTerms;
+        terms = nextTerms;
         mode = selection;
         if (enabled === next) {
-            if (enabled && modeChanged) {
+            if (enabled && (modeChanged || termsChanged)) {
                 restore();
                 scan(document.body);
             }
@@ -281,7 +297,9 @@
             globalThis.navigation?.removeEventListener('currententrychange', onNavigation);
             removeEventListener('popstate', onNavigation);
             clearTimeout(timer);
+            clearTimeout(searchTimer);
             timer = undefined;
+            searchTimer = undefined;
             queued.clear();
             restore();
             return;
@@ -293,9 +311,6 @@
             attributeFilter: ['class', 'aria-label'],
         });
         if (document.readyState !== 'complete') addEventListener('load', onHeaderReady, { once: true });
-        if (document.querySelector('qbsearch-input:not(:defined)')) {
-            void customElements.whenDefined('qbsearch-input').then(onHeaderReady);
-        }
         globalThis.navigation?.addEventListener('currententrychange', onNavigation);
         addEventListener('popstate', onNavigation);
         scan(document.body);

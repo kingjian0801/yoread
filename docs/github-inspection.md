@@ -36,6 +36,7 @@ node --test tests/integration/github-inspection.test.mjs
 
 - `pageType` 使用词库的页面键，例如 `repository`、`repository/issues`、`repository/pulls` 或 `repository/pull`。
 - `location` 写可复查的选择器或控件位置。采集界面固定文案，对照汉化关闭时的 `source` 和开启后同一位置的 `rendered`。无法定位现有词条对应的渲染位置时，保留已知原文与定位线索，将 `rendered` 写为空字符串。
+- 采集全局搜索的无障碍标签时，在对应控件记录中标注 `"attribute": "aria-label"`，使巡检使用与浏览器相同的标签词条。
 - 正文、品牌、自定义名称可直接省略，或仅用 `{"kind":"content"}`、`{"kind":"brand"}`、`{"kind":"identifier"}` 标记。记录访问失败时用 `error`，其中不应附带正文或凭据。
 
 ## 解读与复跑

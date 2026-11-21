@@ -55,7 +55,10 @@ test('keeps the selected GitHub vocabulary when upgrading a registered extension
     await worker.evaluate(() => chrome.scripting.updateContentScripts([{
         id: 'yoread-github', js: ['vendor/github/locals.js', 'github.js'],
     }]));
+    await page.reload();
+    await expect(navigation).toHaveText('拉取请求');
     await openPopup();
+    await expect(navigation).toHaveText('PR');
     await page.reload();
     await expect(navigation).toHaveText('PR');
 });

@@ -72,7 +72,7 @@ function summarize(groups) {
     })).sort((a, b) => b.affectedPages - a.affectedPages || a.source.localeCompare(b.source, 'en'));
 }
 
-function inspect(samples, dictionary, terms, mode) {
+function inspect(samples, dictionary, terms, headerLabels, mode) {
     if (!Array.isArray(samples) || samples.length === 0) throw new Error('Expected a nonempty array of page samples');
     const pages = new Map();
     const findings = new Map();
@@ -94,8 +94,10 @@ function inspect(samples, dictionary, terms, mode) {
             if (!/[A-Za-z]/.test(original) || original.length > 260) continue;
             const source = normalize(control.source);
             const rendered = normalize(control.rendered);
+            const fixedLabel = control.attribute === 'aria-label' && Object.hasOwn(headerLabels, source)
+                ? headerLabels[source] : undefined;
             const term = Object.hasOwn(terms, source) ? terms[source][mode] : undefined;
-            const expected = term ?? lookup(dictionary, pageType, source);
+            const expected = fixedLabel ?? term ?? lookup(dictionary, pageType, source);
             const example = { pageType, url, location: control.location };
             let status = 'matched';
             if (expected === undefined) {
@@ -143,7 +145,8 @@ try {
         runInNewContext(termsSource, context, { timeout: 1000 });
         hash.update('\0').update(termsSource);
     }
-    const result = inspect(samples, context.I18N['zh-CN'], context.yoreadGitHubTerms ?? {}, mode);
+    const result = inspect(samples, context.I18N['zh-CN'], context.yoreadGitHubTerms ?? {},
+        context.yoreadGitHubHeaderLabels ?? {}, mode);
     const report = { dictionaryVersion: `sha256:${hash.digest('hex')}`, mode, ...result };
     console.log(JSON.stringify(report, null, 2));
     process.exitCode = report.findings.length || report.accessFailures.length ? 1 : 0;

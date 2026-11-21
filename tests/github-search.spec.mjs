@@ -75,6 +75,7 @@ test('waits for the GitHub global header to initialize on the first visit after 
     try {
         await page.goto('https://github.com' + path);
         await expect(page.locator('main [data-tab-item="code"]')).toHaveText('代码');
+        await expect(page.locator('header nav[aria-label="Repository"] [data-tab-item="code"]')).toHaveText('代码');
         const trigger = page.locator('#quick-search');
         await expect(trigger.locator('span')).toHaveText('Quick search');
         await expect(trigger).toHaveAccessibleName('Open quick search dialog, type / to search');
@@ -110,4 +111,21 @@ test('waits for the GitHub global header to initialize on the first visit after 
     } finally {
         initialization.resolve();
     }
+});
+
+test('localizes a search component inserted before its definition is available', { tag: '@popup' }, async ({ browserApp }) => {
+    const { fixture, open, page } = browserApp;
+    fixture.html = '<header class="AppHeader"></header><nav aria-label="Repository"><a href="/acme/demo">Code</a></nav>';
+    const popup = await open('github.com', '/acme/demo');
+    await popup.getByRole('switch', { name: 'GitHub 界面汉化' }).check();
+    await expect(page.locator('nav a')).toHaveText('代码');
+
+    await page.locator('header').evaluate(header => {
+        header.innerHTML = '<qbsearch-input><button id="legacy-search" aria-label="Search or jump to, type / to search">Quick search</button></qbsearch-input><button id="settings">Settings</button>';
+    });
+    await expect(page.locator('#settings')).toHaveText('设置');
+    const search = page.locator('#legacy-search');
+    await expect(search).toHaveAccessibleName('Search or jump to, type / to search');
+    await page.evaluate(() => { customElements.define('qbsearch-input', class extends HTMLElement {}); });
+    await expect(search).toHaveAccessibleName('搜索或跳转到，键入 / 搜索');
 });
