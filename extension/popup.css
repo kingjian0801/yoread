@@ -209,6 +209,16 @@ input::placeholder { color: var(--muted); opacity: 1; }
 .github label { cursor: pointer; }
 .github label > span { display: block; }
 #github-label { font-weight: 650; }
+#github-mode {
+  max-width: 100%;
+  min-height: 32px;
+  padding: 3px 8px;
+  border: 1px solid var(--field-rule);
+  border-radius: var(--control);
+  color: var(--ink);
+  background: var(--surface);
+  font: inherit;
+}
 #github-status { grid-column: 1 / -1; }
 
 input[role="switch"] {

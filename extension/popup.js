@@ -3,6 +3,7 @@ const pageStatus = $('page-status');
 const keySettings = $('key-settings');
 const keyInput = $('key');
 const githubSwitch = $('github');
+const githubModeSelect = $('github-mode');
 const translate = $('translate');
 const restore = $('restore');
 const consent = $('consent');
@@ -28,6 +29,8 @@ let tabId;
 let settingsKnown = false;
 let configured = false;
 let githubEnabled = false;
+let githubMode = 'beginner';
+let githubBusy = false;
 let settingsBusy = false;
 let pageBusy = false;
 let pageRevision = 0;
@@ -94,6 +97,15 @@ function feedback(id, text, tone = '') {
   output.dataset.tone = tone;
 }
 
+function renderGithub() {
+  if (!githubBusy) {
+    githubSwitch.checked = githubEnabled;
+    githubModeSelect.value = githubMode;
+  }
+  githubSwitch.disabled = githubBusy || !settingsKnown;
+  githubModeSelect.disabled = githubSwitch.disabled || !githubEnabled;
+}
+
 function renderSettings() {
   const keyState = $('key-state');
   keyState.textContent = configured ? '已配置' : '未配置';
@@ -101,7 +113,7 @@ function renderSettings() {
   $('save-key').disabled = settingsBusy || !settingsKnown;
   $('test-key').disabled = settingsBusy || !configured;
   $('clear-key').disabled = settingsBusy || !configured;
-  githubSwitch.checked = githubEnabled;
+  renderGithub();
   renderPage();
 }
 
@@ -111,7 +123,7 @@ async function refreshSettings({ initial = false } = {}) {
     settingsKnown = true;
     configured = data.configured;
     githubEnabled = data.github;
-    githubSwitch.disabled = false;
+    githubMode = data.githubMode;
     if (initial) keySettings.open = !configured;
   } else {
     feedback('settings-status', errorMessage(data.code), 'error');
@@ -218,7 +230,8 @@ $('dismiss').addEventListener('click', () => void pageAction('page.dismiss'));
 
 githubSwitch.addEventListener('change', async () => {
   const enabled = githubSwitch.checked;
-  githubSwitch.disabled = true;
+  githubBusy = true;
+  renderGithub();
   feedback('github-status', '');
   try {
     const granted = !enabled || await chrome.permissions.request({ origins: ['https://github.com/*'] });
@@ -237,9 +250,24 @@ githubSwitch.addEventListener('change', async () => {
   } catch {
     feedback('github-status', '无法更新 GitHub 汉化设置。请重试。', 'error');
   } finally {
-    githubSwitch.checked = githubEnabled;
-    githubSwitch.disabled = false;
+    githubBusy = false;
+    renderGithub();
   }
+});
+
+githubModeSelect.addEventListener('change', async () => {
+  const mode = githubModeSelect.value;
+  githubBusy = true;
+  renderGithub();
+  const reply = await send('github.mode.set', { mode });
+  if (reply.ok) {
+    githubMode = reply.githubMode;
+    feedback('github-status', mode === 'professional' ? '已切换到专业档。' : '已切换到入门档。', 'success');
+  } else {
+    feedback('github-status', '无法更新 GitHub 汉化模式。请重试。', 'error');
+  }
+  githubBusy = false;
+  renderGithub();
 });
 
 await refreshSettings({ initial: true });

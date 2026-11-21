@@ -3,6 +3,7 @@
     if (globalThis.yoreadGitHub || location.origin !== 'https://github.com') return;
     const upstream = globalThis.I18N;
     const dictionary = upstream?.['zh-CN'];
+    const terms = globalThis.yoreadGitHubTerms ?? {};
     if (!dictionary) return;
 
     const fixed = [
@@ -41,6 +42,8 @@
     const queued = new Set();
     const cache = new Map();
     let enabled = false;
+    let mode = 'beginner';
+    let receivedUpdate = false;
     let route;
     let page;
     let repoPath;
@@ -101,6 +104,10 @@
     }
 
     function lookup(source) {
+        if (Object.hasOwn(terms, source)) {
+            const override = terms[source][mode];
+            if (typeof override === 'string') return override;
+        }
         if (cache.has(source)) return cache.get(source);
         const common = dictionary.public;
         const localValue = Object.hasOwn(page.static || {}, source) ? page.static[source] : null;
@@ -190,8 +197,17 @@
     });
     const onNavigation = () => schedule(document.body);
 
-    function setEnabled(next) {
-        if (enabled === next) return;
+    function setLocalization(next, nextMode = mode) {
+        const selection = nextMode === 'professional' ? 'professional' : 'beginner';
+        const modeChanged = mode !== selection;
+        mode = selection;
+        if (enabled === next) {
+            if (enabled && modeChanged) {
+                restore();
+                scan(document.body);
+            }
+            return;
+        }
         enabled = next;
         if (!enabled) {
             observer.disconnect();
@@ -214,8 +230,19 @@
     globalThis.yoreadGitHub = { owns, excludes };
     chrome.runtime.onMessage.addListener((message, sender, respond) => {
         if (sender.id !== chrome.runtime.id || message?.type !== 'content.github') return;
-        setEnabled(message.enabled === true);
+        receivedUpdate = true;
+        setLocalization(message.enabled === true, message.mode);
         respond({ ok: true });
     });
-    setEnabled(true);
+
+    async function initialize() {
+        let settings;
+        try {
+            settings = await chrome.runtime.sendMessage({ type: 'github.mode.get' });
+        } catch {
+            // Older extension controllers use the default terminology.
+        }
+        if (!receivedUpdate) setLocalization(settings?.enabled !== false, settings?.mode);
+    }
+    void initialize();
 })();

@@ -2,32 +2,45 @@ import { testConnection, translateBatch } from './provider.js';
 
 const githubScriptId = 'yoread-github';
 const githubOrigin = 'https://github.com/*';
-const githubFiles = ['vendor/github/locals.js', 'github.js'];
+const githubFiles = ['vendor/github/locals.js', 'github-terms.js', 'github.js'];
 const local = chrome.storage.local;
 const restricted = () => ({ ok: false, code: 'unsupported' });
 const success = (fields = {}) => ({ ok: true, ...fields });
 const trustedStorage = local.setAccessLevel({ accessLevel: 'TRUSTED_CONTEXTS' });
 let githubUpdate = Promise.resolve();
 
+const githubModeOf = mode => mode === 'professional' ? 'professional' : 'beginner';
+
+function hasCurrentGithubFiles(script) {
+    return script?.js?.length === githubFiles.length && githubFiles.every((file, index) => script.js[index] === file);
+}
+
+async function updateGithubTabs(settings, inject = false) {
+    const tabs = await chrome.tabs.query({ url: githubOrigin });
+    await Promise.allSettled(tabs.map(async ({ id }) => {
+        if (inject) await chrome.scripting.executeScript({ target: { tabId: id }, files: githubFiles });
+        await chrome.tabs.sendMessage(id, { type: 'content.github', ...settings }, { frameId: 0 });
+    }));
+}
+
 async function setGithub(enabled) {
     if (enabled && !await chrome.permissions.contains({ origins: [githubOrigin] })) {
         return { ok: false, code: 'permission-denied' };
     }
-    const registered = await chrome.scripting.getRegisteredContentScripts({ ids: [githubScriptId] });
-    if (enabled && !registered.length) {
+    const [registered] = await chrome.scripting.getRegisteredContentScripts({ ids: [githubScriptId] });
+    if (enabled && !registered) {
         await chrome.scripting.registerContentScripts([{
             id: githubScriptId, matches: [githubOrigin], js: githubFiles,
             runAt: 'document_idle', persistAcrossSessions: true,
         }]);
-    } else if (!enabled && registered.length) {
+    } else if (enabled && !hasCurrentGithubFiles(registered)) {
+        await chrome.scripting.updateContentScripts([{ id: githubScriptId, js: githubFiles }]);
+    } else if (!enabled && registered) {
         await chrome.scripting.unregisterContentScripts({ ids: [githubScriptId] });
     }
     await local.set({ github: enabled });
-    const tabs = await chrome.tabs.query({ url: githubOrigin });
-    await Promise.allSettled(tabs.map(async ({ id }) => {
-        if (enabled) await chrome.scripting.executeScript({ target: { tabId: id }, files: githubFiles });
-        await chrome.tabs.sendMessage(id, { type: 'content.github', enabled }, { frameId: 0 });
-    }));
+    const { githubMode } = await local.get('githubMode');
+    await updateGithubTabs({ enabled, mode: githubModeOf(githubMode) }, enabled);
     if (!enabled) {
         // Enterprise or test installations can grant the host as a required permission.
         // The local renderer is already disabled even if Chrome will retain that grant.
@@ -46,6 +59,16 @@ function changeGithub(enabled) {
     return queueGithub(() => setGithub(enabled));
 }
 
+function changeGithubMode(mode) {
+    if (mode !== 'professional' && mode !== 'beginner') return restricted();
+    return queueGithub(async () => {
+        await local.set({ githubMode: mode });
+        const { github } = await local.get('github');
+        if (github) await updateGithubTabs({ enabled: true, mode });
+        return success({ githubMode: mode });
+    });
+}
+
 function restoreGithub() {
     return queueGithub(async () => {
         const { github } = await local.get('github');
@@ -54,8 +77,8 @@ function restoreGithub() {
             await setGithub(false);
             return false;
         }
-        const registered = await chrome.scripting.getRegisteredContentScripts({ ids: [githubScriptId] });
-        return registered.length > 0 || (await setGithub(true)).ok;
+        const [registered] = await chrome.scripting.getRegisteredContentScripts({ ids: [githubScriptId] });
+        return hasCurrentGithubFiles(registered) || (await setGithub(true)).ok;
     });
 }
 
@@ -99,6 +122,12 @@ async function pageAction(message) {
 
 async function handle(message, sender) {
     await trustedStorage;
+    if (message.type === 'github.mode.get') {
+        if (sender.frameId !== 0 || !sender.tab?.id ||
+            !sender.url?.startsWith('https://github.com/')) return restricted();
+        const { github, githubMode } = await local.get(['github', 'githubMode']);
+        return success({ enabled: github === true, mode: githubModeOf(githubMode) });
+    }
     if (message.type === 'provider.translate') {
         if (sender.frameId !== 0 || !sender.tab?.id || !sender.documentId ||
             !/^https?:\/\//.test(sender.url || '')) return restricted();
@@ -118,8 +147,10 @@ async function handle(message, sender) {
     if (sender.url !== chrome.runtime.getURL('popup.html')) return restricted();
     switch (message.type) {
         case 'settings.get': {
-            const [{ key }, github] = await Promise.all([local.get('key'), restoreGithub()]);
-            return success({ configured: Boolean(key), github });
+            const [{ key, githubMode }, github] = await Promise.all([
+                local.get(['key', 'githubMode']), restoreGithub(),
+            ]);
+            return success({ configured: Boolean(key), github, githubMode: githubModeOf(githubMode) });
         }
         case 'settings.save': {
             const key = typeof message.key === 'string' ? message.key.trim() : '';
@@ -137,6 +168,8 @@ async function handle(message, sender) {
         }
         case 'github.set':
             return changeGithub(message.enabled === true);
+        case 'github.mode.set':
+            return changeGithubMode(message.mode);
         case 'page.translate': {
             const { key } = await local.get('key');
             if (!key) return { ok: false, code: 'missing-key' };

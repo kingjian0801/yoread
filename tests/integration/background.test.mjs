@@ -98,7 +98,9 @@ test('saves a key, tests with fixed text and stops sending after clearing it', a
     assert.deepEqual(await send({ type: 'settings.save', key }, content), { ok: false, code: 'unsupported' });
     assert.deepEqual(await send({ type: 'settings.save', key: ` ${key} ` }), { ok: true });
     assert.equal(requests.length, 0);
-    assert.deepEqual(await send({ type: 'settings.get' }), { ok: true, configured: true, github: false });
+    assert.deepEqual(await send({ type: 'settings.get' }), {
+        ok: true, configured: true, github: false, githubMode: 'beginner',
+    });
     assert.deepEqual(await send({ type: 'settings.test' }), { ok: true });
     assert.deepEqual(textsSent(requests[0]), ['Hello, world.']);
     assert.equal(requests[0].headers.authorization, `Bearer ${key}`);
