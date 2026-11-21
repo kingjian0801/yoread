@@ -87,6 +87,8 @@ test('reports invalid terminology with the file and affected field', async t => 
             sample({}, 'repository/issues'),
             sample({ professional: '<strong>{count} 个提交</strong>' }, 'repository/issues'),
         ] }, /entries\[1\].*conflicting page rule.*repository\/issues/],
+        ['unavailable page rule', { entries: [sample({}, 'repository/actions')] },
+            /entries\[0\].scope.*unknown rule scope repository\/actions/],
         ['missing supported locale', { locales: ['zh-CN', 'fr'], entries: [sample()] }, /entries\[0\].*fr.*missing translation/],
         ['missing English retention reason', { entries: [sample({ professional: sample().english })] }, /entries\[0\].*keepEnglish/],
         ['missing safety review', { entries: [{

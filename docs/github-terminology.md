@@ -17,7 +17,7 @@ node scripts/github-terminology.mjs validate
 | 字段 | 用途 |
 | --- | --- |
 | english | GitHub 界面中的完整英文原文。运行时区分大小写。 |
-| scope | common 表示通用词条。repository/pull 等页面标识表示例外。header-label 表示两档共享的顶栏无障碍标签。 |
+| scope | common 表示通用词条。页面例外使用当前渲染器支持的 repository、repository/issues、repository/pulls 或 repository/pull。header-label 表示两档共享的顶栏无障碍标签。 |
 | translations | 按语言记录 beginner、professional 两种译法。页面例外优先于通用词条。 |
 | example | 写清控件位置或用户看到该文案的情景。 |
 | keepEnglish | 某档沿用英文原文时，说明实际用途。 |

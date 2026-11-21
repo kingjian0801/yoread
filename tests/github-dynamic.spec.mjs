@@ -44,6 +44,15 @@ test('localizes the repository history count as GitHub updates it', { tag: '@pop
 
     await count.evaluate(element => { element.firstChild.data = '3 Commits'; });
     await expect(count).toHaveText('3 次提交');
+    await count.evaluate(element => {
+        const extra = document.createElement('span');
+        extra.id = 'extra-slot';
+        extra.textContent = 'loading';
+        element.after(extra);
+    });
+    await expect(count).toHaveText('3 Commits');
+    await page.locator('#extra-slot').evaluate(element => { element.remove(); });
+    await expect(count).toHaveText('3 次提交');
     await expect(page.locator('article')).toHaveText('3 Commits');
     await expect(page.locator('#unrecognized')).toHaveText('12,34 Commits');
     await expect(page.locator('#missing-count')).toHaveText('Commits');
@@ -78,6 +87,10 @@ test('lets the GitHub time component refresh in Chinese while keeping site updat
             <relative-time id="late" data-component="RelativeTime">Waiting for date</relative-time>
             <relative-time id="invalid" datetime="unknown">Unknown time</relative-time>
             <article class="markdown-body"><relative-time id="readme-time" datetime="${date}"></relative-time></article>
+            <div class="js-full-logs-container"><relative-time id="log-time" datetime="${date}"></relative-time></div>
+            <react-partial partial-name="global-nav-bar"><header class="GlobalNav">
+                <relative-time id="header-time" datetime="${date}"></relative-time>
+            </header></react-partial>
         </main>
         <script>
             let now = Date.parse('2026-11-21T00:02:00Z');
@@ -104,7 +117,7 @@ test('lets the GitHub time component refresh in Chinese while keeping site updat
                 }
             });
         </script>`;
-    const popup = await open('github.com', '/acme/demo/issues');
+    const popup = await open('github.com', '/acme/demo/pull/1');
     const activity = page.locator('#activity');
     const late = page.locator('#late');
     const readme = page.locator('#readme-time');
@@ -112,6 +125,11 @@ test('lets the GitHub time component refresh in Chinese while keeping site updat
     await popup.getByRole('switch', { name: 'GitHub 界面汉化' }).check();
     await expect(activity.locator('span')).toHaveText('2分钟前');
     await expect(readme.locator('span')).toHaveText('2 minutes ago');
+    await expect(page.locator('#log-time span')).toHaveText('2 minutes ago');
+    const header = page.locator('#header-time span');
+    await expect(header).toHaveText('2 minutes ago');
+    await page.locator('react-partial').evaluate(element => { element.classList.add('loaded'); });
+    await expect(header).toHaveText('2分钟前');
     await expect(page.locator('#invalid')).not.toHaveAttribute('lang', /./);
     await expect(late).not.toHaveAttribute('lang', /./);
 

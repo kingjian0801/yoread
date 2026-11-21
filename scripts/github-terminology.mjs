@@ -6,8 +6,7 @@ const cataloguePath = new URL('../data/github-terminology.json', import.meta.url
 const modes = ['beginner', 'professional'];
 const scopes = new Set([
     'common', 'header-label', 'repository', 'repository/issues', 'repository/pulls',
-    'repository/pull', 'repository/actions', 'repository/releases', 'repository/milestones',
-    'repository/settings', 'issues',
+    'repository/pull',
 ]);
 const object = value => value && typeof value === 'object' && !Array.isArray(value);
 const nonempty = value => typeof value === 'string' && Boolean(value.trim());

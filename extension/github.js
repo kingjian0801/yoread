@@ -211,8 +211,12 @@
     }
 
     function ownsTime(element) {
-        return page && element.matches(relativeTime) && !element.closest(protectedContexts) &&
-            Number.isFinite(Date.parse(element.getAttribute('datetime')));
+        if (!page || !element.matches(relativeTime) || element.closest(protectedContexts) ||
+            (ignore && element.closest(ignore)) || !Number.isFinite(Date.parse(element.getAttribute('datetime')))) {
+            return false;
+        }
+        const header = element.closest(globalHeader);
+        return !header || headerReady(header);
     }
 
     function localizeTime(element) {
@@ -315,8 +319,13 @@
                     schedule(record.target);
                 }
             } else {
-                for (const node of record.addedNodes) schedule(node);
-                if (record.removedNodes.length && timer === undefined) timer = setTimeout(flush, 0);
+                if (record.removedNodes.length && record.target.closest?.(commitHistoryControl)) {
+                    // The surviving count can become eligible when its label loses a sibling.
+                    schedule(record.target);
+                } else {
+                    for (const node of record.addedNodes) schedule(node);
+                    if (record.removedNodes.length && timer === undefined) timer = setTimeout(flush, 0);
+                }
             }
         }
     });
