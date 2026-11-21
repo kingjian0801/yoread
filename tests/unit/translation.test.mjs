@@ -15,6 +15,20 @@ test('splits at word boundaries without changing whitespace', () => {
     assert.deepEqual(splitText('  '), [{ source: '  ', result: '  ' }]);
 });
 
+test('splits at the nearest newline or tab before cutting a word', () => {
+    const inputs = [
+        ['a'.repeat(1700) + '\t' + 'b'.repeat(90), '\ntranslation continues'],
+        ['a'.repeat(1700) + '\n' + 'b'.repeat(90), '\ttranslation continues'],
+    ];
+    const chunks = inputs.map(([left, right]) => splitText(left + right).map(part => part.source));
+
+    assert.deepEqual(chunks.map(parts => parts.map(part => part.length)), [
+        [1791, 22],
+        [1791, 22],
+    ]);
+    assert.deepEqual(chunks.map(parts => parts.join('')), inputs.map(parts => parts.join('')));
+});
+
 test('does not split a surrogate pair when a long word has no spaces', () => {
     const left = 'x'.repeat(1799);
     const right = '🌐rest';

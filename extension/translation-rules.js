@@ -9,8 +9,9 @@
         while (offset < text.length) {
             let end = Math.min(offset + 1800, text.length);
             if (end < text.length) {
-                const atSpace = text.lastIndexOf(' ', end);
-                if (atSpace > offset + 900) end = atSpace;
+                let boundary = end;
+                while (boundary > offset + 900 && !/[ \n\t]/.test(text[boundary])) boundary--;
+                if (boundary > offset + 900) end = boundary;
                 else if (/[\uD800-\uDBFF]/.test(text[end - 1])) end--;
             }
             const source = text.slice(offset, end);
