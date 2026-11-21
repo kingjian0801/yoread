@@ -6,6 +6,7 @@ import { join } from 'node:path';
 import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
+import { runInNewContext } from 'node:vm';
 
 const run = promisify(execFile);
 const root = fileURLToPath(new URL('../..', import.meta.url));
@@ -39,6 +40,11 @@ for (const browser of ['edge', 'firefox', 'safari']) {
         assert.ok(files.includes(join('vendor', 'github', 'NOTICE.md')));
         assert.ok(files.includes(join('vendor', 'github', 'locals.js')));
         assert.ok(files.includes('github.js'));
+        const dictionary = {};
+        runInNewContext(await readFile(join(target, 'github-terms.js'), 'utf8'), dictionary);
+        assert.equal(dictionary.yoreadGitHubTerms['Pull requests'].professional, 'PR');
+        assert.equal(dictionary.yoreadGitHubPageTerms['repository/pulls']['Pull requests'].professional, 'PR 列表');
+        assert.equal(dictionary.yoreadGitHubHeaderLabels['Global navigation menu'], '全局导航菜单');
         assert.ok(!files.includes('provider.js'));
         assert.ok(!files.includes('page.js'));
     });

@@ -178,3 +178,20 @@ test('checks terminology against the requested display mode', t => {
     assert.equal(beginner.status, 0, beginner.stderr);
     assert.equal(JSON.parse(beginner.stdout).pages[0].matched, 1);
 });
+
+test('uses the page exception instead of the common mode entry', () => {
+    const result = inspect([
+        {
+            pageType: 'repository',
+            url: repo,
+            controls: [{ source: 'Pull requests', rendered: 'PR', location: 'nav > a' }],
+        },
+        {
+            pageType: 'repository/pulls',
+            url: repo + '/pulls',
+            controls: [{ source: 'Pull requests', rendered: 'PR 列表', location: 'nav > a' }],
+        },
+    ], '--mode', 'professional');
+    assert.equal(result.status, 0, result.stdout || result.stderr);
+    assert.deepEqual(JSON.parse(result.stdout).pages.map(page => page.matched), [1, 1]);
+});

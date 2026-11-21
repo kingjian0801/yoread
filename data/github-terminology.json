@@ -1,0 +1,84 @@
+{
+    "locales": ["zh-CN"],
+    "entries": [
+        {
+            "english": "Pull requests",
+            "scope": "common",
+            "example": "仓库导航中切换到 Pull requests。",
+            "translations": { "zh-CN": { "beginner": "拉取请求（PR）", "professional": "PR" } }
+        },
+        {
+            "english": "Pull requests",
+            "scope": "repository/pulls",
+            "example": "仓库的 Pull requests 页面显示 PR 列表和筛选项。",
+            "translations": { "zh-CN": { "beginner": "拉取请求（PR）", "professional": "PR 列表" } }
+        },
+        {
+            "english": "Pull request",
+            "scope": "common",
+            "example": "打开一条 Pull request 查看变更。",
+            "translations": { "zh-CN": { "beginner": "拉取请求（PR）", "professional": "PR" } }
+        },
+        {
+            "english": "New pull request",
+            "scope": "common",
+            "example": "点击 New pull request 开始比较两个分支。",
+            "translations": { "zh-CN": { "beginner": "新建拉取请求（PR）", "professional": "新建 PR" } }
+        },
+        {
+            "english": "Fork",
+            "scope": "common",
+            "example": "无法直接向上游推送时，使用 Fork 创建可写副本。",
+            "keepEnglish": "专业档沿用贡献流程中常用的 Fork，便于对照命令和教程。",
+            "translations": { "zh-CN": { "beginner": "复刻（Fork）", "professional": "Fork" } }
+        },
+        {
+            "english": "Global navigation menu",
+            "scope": "header-label",
+            "example": "屏幕阅读器用此标签标识 GitHub 全局导航。",
+            "translations": { "zh-CN": { "beginner": "全局导航菜单", "professional": "全局导航菜单" } }
+        },
+        {
+            "english": "Open quick search dialog, type / to search",
+            "scope": "header-label",
+            "example": "全局导航按钮为键盘用户提示 / 快捷键。",
+            "translations": { "zh-CN": { "beginner": "打开快速搜索对话框，键入 / 搜索", "professional": "打开快速搜索对话框，键入 / 搜索" } }
+        },
+        {
+            "english": "Search or jump to, type / to search",
+            "scope": "header-label",
+            "example": "旧版全局搜索按钮显示打开搜索或跳转的提示。",
+            "translations": { "zh-CN": { "beginner": "搜索或跳转到，键入 / 搜索", "professional": "搜索或跳转到，键入 / 搜索" } }
+        },
+        {
+            "english": "Merge pull request",
+            "scope": "repository/pull",
+            "example": "PR 详情中准备将变更合入目标分支。",
+            "review": {
+                "reference": "https://docs.github.com/zh/pull-requests/how-tos/merge-and-close-pull-requests/merging-a-pull-request",
+                "note": "两档均使用上游的「合并拉取请求」，保留操作对象，并与二次确认文案区分。"
+            },
+            "translations": { "zh-CN": { "beginner": "合并拉取请求", "professional": "合并拉取请求" } }
+        },
+        {
+            "english": "Confirm merge",
+            "scope": "repository/pull",
+            "example": "检查合并设置后执行二次确认。",
+            "review": {
+                "reference": "https://docs.github.com/zh/pull-requests/how-tos/merge-and-close-pull-requests/merging-a-pull-request",
+                "note": "沿用「确认合并」。中文必须表达这是最终确认步骤。"
+            },
+            "translations": { "zh-CN": { "beginner": "确认合并", "professional": "确认合并" } }
+        },
+        {
+            "english": "Delete branch",
+            "scope": "repository/pull",
+            "example": "在已关闭或已合并的 PR 底部删除关联分支。",
+            "review": {
+                "reference": "https://docs.github.com/zh/repositories/configuring-branches-and-merges-in-your-repository/managing-branches-in-your-repository/deleting-and-restoring-branches-in-a-pull-request",
+                "note": "保留「分支」对象，与删除仓库或关闭 PR 区分。"
+            },
+            "translations": { "zh-CN": { "beginner": "删除分支", "professional": "删除分支" } }
+        }
+    ]
+}

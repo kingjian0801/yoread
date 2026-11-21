@@ -1,11 +1,11 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
 import { createHash } from 'node:crypto';
-import { existsSync, readFileSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import { parseArgs } from 'node:util';
 import { runInNewContext } from 'node:vm';
+import { readTerminology, terminologyMaps } from './github-terminology.mjs';
 
 const dictionaryPath = new URL('../extension/vendor/github/locals.js', import.meta.url);
-const termsPath = new URL('../extension/github-terms.js', import.meta.url);
 const normalize = text => text.trim().replace(/\s+/g, ' ');
 const controlKinds = new Set(['ui', 'content', 'brand', 'identifier']);
 const nonempty = value => typeof value === 'string' && Boolean(value.trim());
@@ -72,7 +72,7 @@ function summarize(groups) {
     })).sort((a, b) => b.affectedPages - a.affectedPages || a.source.localeCompare(b.source, 'en'));
 }
 
-function inspect(samples, dictionary, terms, headerLabels, mode) {
+function inspect(samples, dictionary, { common, headerLabels, pages: termsByPage }, mode) {
     if (!Array.isArray(samples) || samples.length === 0) throw new Error('Expected a nonempty array of page samples');
     const pages = new Map();
     const findings = new Map();
@@ -96,7 +96,7 @@ function inspect(samples, dictionary, terms, headerLabels, mode) {
             const rendered = normalize(control.rendered);
             const fixedLabel = control.attribute === 'aria-label' && Object.hasOwn(headerLabels, source)
                 ? headerLabels[source] : undefined;
-            const term = Object.hasOwn(terms, source) ? terms[source][mode] : undefined;
+            const term = (termsByPage[pageType]?.[source] ?? common[source])?.[mode];
             const expected = fixedLabel ?? term ?? lookup(dictionary, pageType, source);
             const example = { pageType, url, location: control.location };
             let status = 'matched';
@@ -139,14 +139,9 @@ try {
     const dictionarySource = readFileSync(values.dictionary ?? dictionaryPath, 'utf8');
     const context = {};
     runInNewContext(dictionarySource, context, { timeout: 1000 });
-    const hash = createHash('sha256').update(dictionarySource);
-    if (existsSync(termsPath)) {
-        const termsSource = readFileSync(termsPath, 'utf8');
-        runInNewContext(termsSource, context, { timeout: 1000 });
-        hash.update('\0').update(termsSource);
-    }
-    const result = inspect(samples, context.I18N['zh-CN'], context.yoreadGitHubTerms ?? {},
-        context.yoreadGitHubHeaderLabels ?? {}, mode);
+    const { source, catalogue } = readTerminology();
+    const hash = createHash('sha256').update(dictionarySource).update('\0').update(source);
+    const result = inspect(samples, context.I18N['zh-CN'], terminologyMaps(catalogue), mode);
     const report = { dictionaryVersion: `sha256:${hash.digest('hex')}`, mode, ...result };
     console.log(JSON.stringify(report, null, 2));
     process.exitCode = report.findings.length || report.accessFailures.length ? 1 : 0;
