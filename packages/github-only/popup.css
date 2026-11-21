@@ -1,0 +1,24 @@
+:root {
+    color-scheme: light dark;
+    font: 14px/1.5 system-ui, sans-serif;
+}
+
+body {
+    inline-size: min(18rem, 100vw);
+    margin: 0;
+}
+
+main { padding: 1rem; }
+h1 { margin: 0; font-size: 1.1rem; }
+p { margin: .5rem 0; }
+
+.setting {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: .5rem;
+    margin-block: .75rem;
+}
+
+input, select { font: inherit; }
+#github-status:empty { display: none; }

@@ -5,9 +5,13 @@
     const dictionary = upstream?.['zh-CN'];
     if (!dictionary) return;
 
+    const reactHeader = 'react-partial[partial-name="global-nav-bar"], react-partial[partial-name="marketing-header"]';
+    const globalHeader = `.AppHeader, header.GlobalNav, ${reactHeader}`;
+    const pendingSearch = 'qbsearch-input:not(:defined)';
+    const headerLabelControls = 'header[aria-label], button[aria-label]';
+    const repositoryNav = 'nav[aria-label="Repository"], nav[aria-label="Repository navigation"], nav[data-testid="repository-navbar"]';
     const fixed = [
-        '.AppHeader', '.UnderlineNav', '.tabnav-tabs', 'nav[aria-label="Repository"]',
-        'nav[aria-label="Repository navigation"]', 'nav[data-testid="repository-navbar"]',
+        globalHeader, repositoryNav, '.UnderlineNav', '.tabnav-tabs',
         'a[data-dd-action-name^="pull_requests.navigation."]',
         '#repository-container-header', 'button', 'summary', '[role="button"]',
         'a.btn', 'a.Button', 'a[href$="/issues/new"]', 'a[href$="/issues/new/choose"]',
@@ -38,14 +42,19 @@
         '[hidden]', '[inert]', '[aria-hidden="true"]', '[translate="no"]',
     ].join(',');
     const changed = new Map();
+    const changedLabels = new Map();
     const queued = new Set();
     const cache = new Map();
     let enabled = false;
+    let mode = 'beginner';
+    let terms = globalThis.yoreadGitHubTerms;
+    let receivedUpdate = false;
     let route;
     let page;
     let repoPath;
     let ignore;
     let timer;
+    let searchTimer;
 
     function readRoute() {
         restore();
@@ -68,6 +77,20 @@
             if (node.isConnected && node.data === rendered) node.data = original;
         }
         changed.clear();
+        for (const [element, change] of changedLabels) restoreLabel(element, change);
+        changedLabels.clear();
+    }
+
+    function restoreLabel(element, { original, rendered }) {
+        if (element.isConnected && element.getAttribute('aria-label') === rendered) {
+            element.setAttribute('aria-label', original);
+        }
+    }
+
+    function headerReady(header) {
+        // GitHub's react-partial adds "loaded" after the React commit.
+        const partial = header.closest(reactHeader);
+        return partial ? partial.classList.contains('loaded') : document.readyState === 'complete';
     }
 
     function isIdentifier(element) {
@@ -89,6 +112,9 @@
         const element = node.parentElement;
         if (!page || !element?.closest(fixed) || element.closest(protectedContent) ||
             isIdentifier(element)) return false;
+        const header = element.closest(globalHeader);
+        if (header && (element.closest(pendingSearch) ||
+            (!element.closest(repositoryNav) && !headerReady(header)))) return false;
         return !ignore || !element.closest(ignore);
     }
 
@@ -101,6 +127,10 @@
     }
 
     function lookup(source) {
+        if (terms && Object.hasOwn(terms, source)) {
+            const override = terms[source][mode];
+            if (typeof override === 'string') return override;
+        }
         if (cache.has(source)) return cache.get(source);
         const common = dictionary.public;
         const localValue = Object.hasOwn(page.static || {}, source) ? page.static[source] : null;
@@ -139,6 +169,25 @@
         node.data = rendered;
     }
 
+    function ownsLabel(element) {
+        const header = element.closest(globalHeader);
+        return page && header && headerReady(header) && element.matches(headerLabelControls) &&
+            !element.closest(protectedContent) && !element.closest(pendingSearch) &&
+            (!ignore || !element.closest(ignore));
+    }
+
+    function translateLabel(element) {
+        if (!ownsLabel(element)) return;
+        const original = element.getAttribute('aria-label');
+        if (changedLabels.get(element)?.rendered === original) return;
+        changedLabels.delete(element);
+        const headerLabels = globalThis.yoreadGitHubHeaderLabels;
+        if (!headerLabels || !Object.hasOwn(headerLabels, original)) return;
+        const rendered = headerLabels[original];
+        changedLabels.set(element, { original, rendered });
+        element.setAttribute('aria-label', rendered);
+    }
+
     function scan(root) {
         if (!root?.isConnected || !page) return;
         if (root.nodeType === Node.TEXT_NODE) return translate(root);
@@ -146,9 +195,29 @@
         const scopes = root.closest(fixed) ? [root] : [...root.querySelectorAll(fixed)]
             .filter(scope => !scope.parentElement?.closest(fixed));
         for (const scope of scopes) {
+            const header = scope.closest(globalHeader);
+            if (header && headerReady(header)) {
+                const search = scope.closest(pendingSearch) ?? scope.querySelector(pendingSearch);
+                if (search) waitForSearch(search);
+                if (scope.matches(headerLabelControls)) translateLabel(scope);
+                for (const element of scope.querySelectorAll(headerLabelControls)) translateLabel(element);
+            }
             const walker = document.createTreeWalker(scope, NodeFilter.SHOW_TEXT);
             while (walker.nextNode()) translate(walker.currentNode);
         }
+    }
+
+    function waitForSearch(element) {
+        if (searchTimer !== undefined) return;
+        // A content script cannot observe the page's custom-element registry directly.
+        const deadline = Date.now() + 15_000;
+        function check() {
+            searchTimer = undefined;
+            if (!enabled || !element.isConnected) return;
+            if (element.matches(':defined')) schedule(element);
+            else if (Date.now() < deadline) searchTimer = setTimeout(check, 80);
+        }
+        searchTimer = setTimeout(check, 80);
     }
 
     function flush() {
@@ -163,6 +232,11 @@
             if (node.isConnected && owns(node)) continue;
             if (node.isConnected && node.data === rendered) node.data = original;
             changed.delete(node);
+        }
+        for (const [element, change] of changedLabels) {
+            if (element.isConnected && ownsLabel(element)) continue;
+            restoreLabel(element, change);
+            changedLabels.delete(element);
         }
         for (const root of queued) scan(root);
         queued.clear();
@@ -182,6 +256,15 @@
         for (const record of records) {
             if (record.type === 'characterData') {
                 if (changed.get(record.target)?.rendered !== record.target.data) schedule(record.target);
+            } else if (record.type === 'attributes') {
+                if (record.attributeName === 'class' && record.target.matches(reactHeader)) {
+                    schedule(record.target);
+                } else if (record.attributeName === 'aria-label' &&
+                    (changedLabels.has(record.target) ||
+                        (record.target.matches(headerLabelControls) && record.target.closest(globalHeader))) &&
+                    changedLabels.get(record.target)?.rendered !== record.target.getAttribute('aria-label')) {
+                    schedule(record.target);
+                }
             } else {
                 for (const node of record.addedNodes) schedule(node);
                 if (record.removedNodes.length && timer === undefined) timer = setTimeout(flush, 0);
@@ -189,23 +272,45 @@
         }
     });
     const onNavigation = () => schedule(document.body);
+    const onHeaderReady = () => {
+        if (enabled) document.querySelectorAll(globalHeader).forEach(schedule);
+    };
 
-    function setEnabled(next) {
-        if (enabled === next) return;
+    function setLocalization(next, nextMode = mode) {
+        const selection = nextMode === 'professional' ? 'professional' : 'beginner';
+        const modeChanged = mode !== selection;
+        const nextTerms = globalThis.yoreadGitHubTerms;
+        const termsChanged = terms !== nextTerms;
+        terms = nextTerms;
+        mode = selection;
+        if (enabled === next) {
+            if (enabled && (modeChanged || termsChanged)) {
+                restore();
+                scan(document.body);
+            }
+            return;
+        }
         enabled = next;
         if (!enabled) {
             observer.disconnect();
+            removeEventListener('load', onHeaderReady);
             globalThis.navigation?.removeEventListener('currententrychange', onNavigation);
             removeEventListener('popstate', onNavigation);
             clearTimeout(timer);
+            clearTimeout(searchTimer);
             timer = undefined;
+            searchTimer = undefined;
             queued.clear();
             restore();
             return;
         }
         readRoute();
         globalThis.yoreadPage?.release?.(excludes);
-        observer.observe(document.documentElement, { subtree: true, childList: true, characterData: true });
+        observer.observe(document.documentElement, {
+            subtree: true, childList: true, characterData: true,
+            attributeFilter: ['class', 'aria-label'],
+        });
+        if (document.readyState !== 'complete') addEventListener('load', onHeaderReady, { once: true });
         globalThis.navigation?.addEventListener('currententrychange', onNavigation);
         addEventListener('popstate', onNavigation);
         scan(document.body);
@@ -214,8 +319,19 @@
     globalThis.yoreadGitHub = { owns, excludes };
     chrome.runtime.onMessage.addListener((message, sender, respond) => {
         if (sender.id !== chrome.runtime.id || message?.type !== 'content.github') return;
-        setEnabled(message.enabled === true);
+        receivedUpdate = true;
+        setLocalization(message.enabled === true, message.mode);
         respond({ ok: true });
     });
-    setEnabled(true);
+
+    async function initialize() {
+        let settings;
+        try {
+            settings = await chrome.runtime.sendMessage({ type: 'github.mode.get' });
+        } catch {
+            // Older extension controllers use the default terminology.
+        }
+        if (!receivedUpdate) setLocalization(settings?.enabled !== false, settings?.mode);
+    }
+    void initialize();
 })();

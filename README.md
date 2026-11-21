@@ -8,7 +8,9 @@ Yoread 是桌面 Chrome 网页翻译扩展。使用自己的 DeepSeek API Key �
 2. 在桌面 Chrome 打开 `chrome://extensions`，开启「开发者模式」，选择「加载已解压的扩展程序」，并选中含 `manifest.json` 的目录。
 3. 打开一个普通英文网页，点击工具栏的 Yoread，展开「设置」并保存自己的 API Key，然后点击「测试连接」。连接测试使用固定短文本。试用模型为 DeepSeek 官方 API 的 `deepseek-flash`。
 4. 点击「翻译此页」。每个页面首次发送正文前都会说明发送范围并等待确认。弹窗会显示正文进度，仍未完成时可点击「重试翻译」。滚动后新加载的正文用「翻译新增内容」补译，刷新或导航后重新确认。点击「恢复原文」可撤销正文翻译。
-5. 如需 GitHub 菜单、按钮和状态标签使用中文，打开「GitHub 界面汉化」并允许该站点的访问权限。此开关默认关闭，开启后在本地应用词库。恢复 GitHub 正文原文时，界面汉化仍保留。
+5. 如需 GitHub 菜单、按钮和状态标签使用中文，打开「GitHub 界面汉化」并允许该站点的访问权限。在「汉化模式」中切换入门档或专业档，当前页面立即更新，刷新后保留选择。恢复 GitHub 正文原文时，界面汉化仍保留。
+
+Edge、Firefox 和 Safari 的离线汉化试用包见[候选包构建与安装](docs/github-extension-candidates.md)。维护者可按[巡检报告说明](docs/github-inspection.md)运行固定样本。
 
 首版验收采用 [正式 PRD](docs/yoread-mvp-prd.md) 的测试场景。Kim 和 Coco 分别用自己的 Key 在新闻、技术文档、博客、允许发送的非敏感登录页面及 GitHub 上试用。记录候选提交、扩展版本、样本、通过情况和问题。
 

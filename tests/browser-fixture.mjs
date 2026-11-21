@@ -10,7 +10,8 @@ export { expect };
 
 export const test = base.extend({
     githubHostPermission: [true, { option: true }],
-    browserApp: async ({ githubHostPermission }, use, info) => {
+    extensionTarget: ['chrome', { option: true }],
+    browserApp: async ({ githubHostPermission, extensionTarget }, use, info) => {
         const temp = info.outputPath('browser');
         await mkdir(temp, { recursive: true });
         const key = join(temp, 'key.pem');
@@ -22,13 +23,19 @@ export const test = base.extend({
             .export({ type: 'spki', format: 'der' })).digest('base64');
 
         const extension = join(temp, 'extension');
-        await cp(resolve('dist/extension'), extension, { recursive: true });
+        if (extensionTarget === 'chrome') {
+            await cp(resolve('dist/extension'), extension, { recursive: true });
+        } else {
+            execFileSync(process.execPath, ['scripts/build-github-only.mjs', extensionTarget, extension]);
+        }
         const manifestPath = join(extension, 'manifest.json');
         const manifest = JSON.parse(await readFile(manifestPath, 'utf8'));
+        const hosts = manifest.host_permissions ?? [];
         // Model the toolbar's temporary access to the generic translation fixture pages.
-        manifest.host_permissions.push('https://fixture.test/*', 'http://insecure.test/*');
-        // Model an accepted browser prompt in tests that exercise enabled GitHub localization.
-        if (githubHostPermission) manifest.host_permissions.push('https://github.com/*');
+        if (extensionTarget === 'chrome') hosts.push('https://fixture.test/*', 'http://insecure.test/*');
+        // Model an accepted native prompt in the headless browser.
+        if (githubHostPermission) hosts.push('https://github.com/*');
+        manifest.host_permissions = hosts;
         await writeFile(manifestPath, JSON.stringify(manifest));
 
         const messages = [];
@@ -81,7 +88,7 @@ export const test = base.extend({
         try {
             const rules = ['api.deepseek.com', 'fixture.test', 'github.com'].map(host => `MAP ${host} 127.0.0.1:${port}`);
             rules.push(`MAP insecure.test 127.0.0.1:${insecure.address().port}`);
-            context = await chromium.launchPersistentContext(join(temp, 'profile'), {
+            const launch = () => chromium.launchPersistentContext(join(temp, 'profile'), {
                 channel: 'chromium',
                 viewport: { width: 380, height: 660 },
                 args: [
@@ -90,14 +97,21 @@ export const test = base.extend({
                     `--ignore-certificate-errors-spki-list=${pin}`, '--disable-background-networking',
                 ],
             });
+            context = await launch();
             const [worker = await context.waitForEvent('serviceworker')] = context.serviceWorkers();
             const extensionId = new URL(worker.url()).hostname;
-            const [page = await context.newPage()] = context.pages();
+            let [page = await context.newPage()] = context.pages();
+            const restart = async () => {
+                await context.close();
+                context = await launch();
+                [page = await context.newPage()] = context.pages();
+                return page;
+            };
             const openPopup = async () => {
                 await page.bringToFront();
                 const popup = await context.newPage();
                 await popup.goto(`chrome-extension://${extensionId}/popup.html`);
-                await expect(popup.locator('#save-key')).toBeEnabled();
+                await expect(popup.locator(extensionTarget === 'chrome' ? '#save-key' : '#github')).toBeEnabled();
                 return popup;
             };
             const open = async (host = 'fixture.test', path = '/') => {
@@ -105,7 +119,7 @@ export const test = base.extend({
                 await page.goto(`${scheme}://${host}${path}`);
                 return openPopup();
             };
-            await use({ fixture, page, open, openPopup, context, extensionId });
+            await use({ fixture, page, open, openPopup, restart, context, extensionId });
         } finally {
             await context?.close();
             server.closeAllConnections();

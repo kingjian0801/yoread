@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Yoread</title>
+    <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+    <main>
+        <h1>GitHub 界面汉化</h1>
+        <p>使用本地词库翻译 GitHub 界面。</p>
+        <label class="setting"><span>启用汉化</span><input type="checkbox" id="github" disabled></label>
+        <label class="setting"><span>汉化模式</span>
+            <select id="github-mode" disabled>
+                <option value="beginner">入门档</option>
+                <option value="professional">专业档</option>
+            </select>
+        </label>
+        <p id="github-status" role="status" aria-live="polite"></p>
+    </main>
+    <script src="popup.js"></script>
+</body>
+</html>
