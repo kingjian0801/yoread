@@ -89,6 +89,16 @@
             "translations": { "zh-CN": { "beginner": "确认合并", "professional": "确认合并" } }
         },
         {
+            "english": "Delete this issue",
+            "scope": "repository/issues",
+            "example": "在删除议题的二次确认对话框中执行删除。",
+            "review": {
+                "reference": "https://docs.github.com/en/issues/tracking-your-work-with-issues/administering-issues/deleting-an-issue",
+                "note": "官方步骤将此按钮标为删除确认，两档都保留对象与确认阶段，和「删除议题」入口区分。"
+            },
+            "translations": { "zh-CN": { "beginner": "确认删除此议题", "professional": "确认删除此议题" } }
+        },
+        {
             "english": "Delete branch",
             "scope": "repository/pull",
             "example": "在已关闭或已合并的 PR 底部删除关联分支。",

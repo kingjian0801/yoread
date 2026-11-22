@@ -10,6 +10,11 @@ test('localizes GitHub issue list and detail controls while preserving collabora
                 <div class="markdown-body">Closed</div>
                 <textarea aria-label="Edit">Draft</textarea>
                 <button>Close issue</button>
+                <button onclick="deleteIssue.showModal()">Delete issue</button>
+                <dialog id="deleteIssue" aria-labelledby="deleteHeading">
+                    <h2 id="deleteHeading">Delete issue?</h2>
+                    <form method="dialog"><button type="button">Delete this issue</button><button>Cancel</button></form>
+                </dialog>
             </main></react-app>`;
         }
         return `<react-app app-name="repo"><main>
@@ -55,6 +60,12 @@ test('localizes GitHub issue list and detail controls while preserving collabora
     await expect(page.getByTestId('issue-title')).toHaveText('Open');
     await expect(page.locator('.markdown-body')).toHaveText('Closed');
     await expect(page.locator('textarea')).toHaveValue('Draft');
+    await page.getByRole('button', { name: '删除议题', exact: true }).click();
+    const confirmation = page.getByRole('dialog', { name: '删除议题？' });
+    await expect(confirmation.getByRole('button', { name: '确认删除此议题' })).toBeVisible();
+    await popup.getByRole('combobox', { name: '汉化模式' }).selectOption('professional');
+    await expect(confirmation.getByRole('button', { name: '确认删除此议题' })).toBeVisible();
+    await confirmation.getByRole('button', { name: '取消' }).click();
     await toggle.uncheck();
     await expect(page.getByTestId('header-state')).toHaveText('Open');
     await expect(page.locator('textarea')).toHaveAttribute('aria-label', 'Edit');
