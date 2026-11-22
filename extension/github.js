@@ -25,6 +25,35 @@
         '.State', '.StateLabel', '[data-testid="issue-state-badge"]',
         '[data-testid="state-label"]', '[class*="StateLabel"]', commitHistoryControl,
     ].join(',');
+    const actionsRoute = /^\/[^/]+\/[^/]+\/actions(?:\/workflows\/[^/]+|\/runs\/\d+(?:\/attempts\/\d+)?(?:\/job\/\d+)?)?\/?$/;
+    const actionsList = 'react-app [data-listview-component="items-list"]';
+    const actionsFilter = 'react-app search[class^="FilterBar__"]';
+    const actionsFilterTitle = '[data-component="SelectPanel.Title"]';
+    const actionsFilterOption = '[data-component="SelectPanel"] [role="option"] [data-component="ActionList.Item.Label"]';
+    const actionsAnnotations = '[data-url$="/annotations_partial"]';
+    const actionsFixed = [
+        'react-app [data-component="PH_Title"]', 'react-app [data-component="PageHeader.Description"]',
+        'react-app [data-component="Sidebar.Item"]', 'react-app h2[id$="-list-view-container-title"]',
+        `${actionsFilter} label`, actionsFilterTitle, actionsFilterOption, `${actionsList} .sr-only`,
+        '.actions-workflow-stats > div > div > span', '.actions-workflow-stats .col-triggered-content span',
+        `${actionsAnnotations} h2`,
+    ].join(',');
+    const actionsProtected = [
+        '[data-listview-item-title-container]', `${actionsList} strong`, '.PageHeader-parentLink',
+        '.WorkflowJob-title', 'action-graph', 'annotation-message',
+        '.js-full-logs-container', '[role="log"]', '.terminal', 'table.highlight',
+    ].join(',');
+    const actionsLabels = [
+        actionsFilter, `${actionsFilter} [role="form"]`, 'react-app nav[data-component="Sidebar.Main"]',
+        'react-app section[aria-label]', 'react-app [role="group"][aria-label]',
+        'react-app [data-component="ActionBar"] [role="toolbar"]', `${actionsList} li[aria-label]`,
+        '.actions-workflow-stats', actionsAnnotations,
+    ].join(',');
+    const actionsLabelTerms = {
+        'Workflow run filters': '工作流运行筛选',
+        'Workflow runs results': '工作流运行结果',
+        'Workflow run summary': '工作流运行摘要',
+    };
     const userContent = [
         'article', '.markdown-body', '.js-comment-body', '.comment-body',
         '.js-issue-title', '.markdown-title', '[data-testid="issue-title"]',
@@ -62,6 +91,7 @@
     let pageKey;
     let page;
     let repoPath;
+    let fixedForRoute = fixed;
     let ignore;
     let timer;
     let searchTimer;
@@ -75,11 +105,13 @@
         route = location.pathname;
         const [owner, repo, section] = route.split('/').filter(Boolean);
         const kind = route.match(upstream.conf.rePagePathRepo)?.[1];
-        const supported = !section || (section === kind && ['issues', 'pull', 'pulls'].includes(kind));
+        const actions = kind === 'actions' && actionsRoute.test(route);
+        const supported = !section || actions || (section === kind && ['issues', 'pull', 'pulls'].includes(kind));
         const reserved = owner && ('/' + owner.toLowerCase() + '/').match(upstream.conf.rePagePath)?.[1] === owner.toLowerCase();
         pageKey = kind ? `repository/${kind}` : 'repository';
         page = owner && repo && !reserved && supported ? dictionary[pageKey] : null;
         repoPath = page ? `/${owner}/${repo}`.toLowerCase() : '';
+        fixedForRoute = actions ? `${fixed},${actionsFixed}` : fixed;
         // The upstream feature varies these exclusions by page and combines its global entries.
         const skip = upstream.conf.ignoreSelectorPage;
         ignore = [...(skip['*'] || []), ...(skip[pageKey] || [])].join(',');
@@ -109,6 +141,22 @@
     }
 
     function isIdentifier(element) {
+        if (pageKey === 'repository/actions') {
+            if (element.closest(actionsProtected)) return true;
+            if (element.closest('[data-component="PH_Title"]') &&
+                route.slice(repoPath.length).startsWith('/actions/workflows/')) return true;
+            if (element.closest(actionsFilterOption)) {
+                const title = element.closest('[data-component="SelectPanel"]').querySelector(actionsFilterTitle)?.firstChild;
+                const previous = changed.get(title);
+                const original = previous && previous.rendered === title.data ? previous.original : title?.data;
+                if (original !== 'Filter by Status' && original !== 'Filter by Event') return true;
+            }
+            const actionLink = element.closest('a[href]');
+            if (actionLink?.origin === location.origin && actionLink.pathname.toLowerCase().startsWith(repoPath + '/actions/')) {
+                const actionPath = actionLink.pathname.slice(repoPath.length);
+                if (/^\/actions\/(?:workflows\/[^/]+|runs\/\d+(?:\/attempts\/\d+)?\/job\/\d+)\/?$/.test(actionPath)) return true;
+            }
+        }
         const link = element.closest('a[href]');
         if (!link) return false;
         const path = link.pathname.toLowerCase().replace(/\/+$/, '');
@@ -126,7 +174,7 @@
         if (route !== location.pathname) readRoute();
         if (showingOriginal) return false;
         const element = node.parentElement;
-        if (!page || !element?.closest(fixed) || element.closest(protectedContent) ||
+        if (!page || !element?.closest(fixedForRoute) || element.closest(protectedContent) ||
             isIdentifier(element)) return false;
         const history = element.closest(commitHistoryControl);
         if (history) {
@@ -145,7 +193,8 @@
         if (route !== location.pathname) readRoute();
         const element = node.parentElement;
         return Boolean(page && element && (element.closest(identifiers) || element.closest('relative-time') ||
-            (element.closest(fixed) && !element.closest(userContent))));
+            (pageKey === 'repository/actions' && isIdentifier(element)) ||
+            (element.closest(fixedForRoute) && !element.closest(userContent))));
     }
 
     function lookup(source, exactOnly = false) {
@@ -187,18 +236,33 @@
         const trimmed = original.trim();
         if (!/[A-Za-z]/.test(trimmed) || trimmed.length > 260) return;
         const source = trimmed.replace(/\s+/g, ' ');
-        const separateCountLabel = node.parentElement.closest(commitHistoryControl);
-        const value = lookup(source, Boolean(separateCountLabel && !commitCount.test(source)));
+        const element = node.parentElement;
+        const separateCountLabel = element.closest(commitHistoryControl);
+        const actionPage = pageKey === 'repository/actions';
+        const exactOnly = (separateCountLabel && !commitCount.test(source)) ||
+            (actionPage && element.closest(actionsFilterOption));
+        const value = actionPage && element.matches('.sr-only') && element.closest(actionsList)
+            ? translateActionStatus(source)
+            : lookup(source, Boolean(exactOnly));
         const rendered = value && value !== source ? original.replace(trimmed, () => value) : original;
         if (rendered !== original) changed.set(node, { original, rendered });
         if (node.data !== rendered) node.data = rendered;
     }
 
     function ownsLabel(element) {
+        if (pageKey === 'repository/actions' && element.matches(actionsLabels) &&
+            !element.closest(protectedContent) && (!ignore || !element.closest(ignore))) return true;
         const header = element.closest(globalHeader);
         return page && header && headerReady(header) && element.matches(headerLabelControls) &&
             !element.closest(protectedContent) && !element.closest(pendingSearch) &&
             (!ignore || !element.closest(ignore));
+    }
+
+    function translateActionStatus(source) {
+        const match = /^([a-z ]+):(.*)$/s.exec(source);
+        if (!match) return null;
+        const status = lookup(match[1], true);
+        return status ? `${status}：${match[2]}` : null;
     }
 
     function translateLabel(element) {
@@ -207,8 +271,14 @@
         if (changedLabels.get(element)?.rendered === original) return;
         changedLabels.delete(element);
         const headerLabels = globalThis.yoreadGitHubHeaderLabels;
-        if (!headerLabels || !Object.hasOwn(headerLabels, original)) return;
-        const rendered = headerLabels[original];
+        let rendered;
+        if (pageKey === 'repository/actions' && element.matches(actionsLabels)) {
+            if (element.matches('li')) rendered = translateActionStatus(original);
+            else rendered = Object.hasOwn(actionsLabelTerms, original) ? actionsLabelTerms[original] : lookup(original, true);
+        } else if (headerLabels && Object.hasOwn(headerLabels, original)) {
+            rendered = headerLabels[original];
+        }
+        if (!rendered || rendered === original) return;
         changedLabels.set(element, { original, rendered });
         element.setAttribute('aria-label', rendered);
     }
@@ -237,8 +307,12 @@
         if (root.nodeType !== Node.ELEMENT_NODE) return;
         if (root.matches(relativeTime)) localizeTime(root);
         for (const time of root.querySelectorAll(relativeTime)) localizeTime(time);
-        const scopes = root.closest(fixed) ? [root] : [...root.querySelectorAll(fixed)]
-            .filter(scope => !scope.parentElement?.closest(fixed));
+        if (pageKey === 'repository/actions') {
+            if (root.matches(actionsLabels)) translateLabel(root);
+            for (const element of root.querySelectorAll(actionsLabels)) translateLabel(element);
+        }
+        const scopes = root.closest(fixedForRoute) ? [root] : [...root.querySelectorAll(fixedForRoute)]
+            .filter(scope => !scope.parentElement?.closest(fixedForRoute));
         for (const scope of scopes) {
             const header = scope.closest(globalHeader);
             if (header && headerReady(header)) {
@@ -313,6 +387,7 @@
                     schedule(record.target);
                 } else if (record.attributeName === 'aria-label' &&
                     (changedLabels.has(record.target) ||
+                        (pageKey === 'repository/actions' && record.target.matches(actionsLabels)) ||
                         (record.target.matches(headerLabelControls) && record.target.closest(globalHeader))) &&
                     changedLabels.get(record.target)?.rendered !== record.target.getAttribute('aria-label')) {
                     schedule(record.target);
