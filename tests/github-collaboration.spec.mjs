@@ -88,7 +88,7 @@ test('localizes creating and reviewing a pull request with stable confirmation t
                 <div class="diff-text-inner"><button>Open</button></div>
                 <review-thread-collapsible>
                     <button id="thread" aria-labelledby="thread-label"></button>
-                    <tool-tip id="thread-label" for="thread" data-type="label">Comment thread</tool-tip>
+                    <tool-tip id="thread-label" for="thread" data-type="label" aria-hidden="true">Comment thread</tool-tip>
                 </review-thread-collapsible>
                 <div class="js-merge-box">
                     <button onclick="merge.showModal()">Merge pull request</button>

@@ -67,6 +67,7 @@
         'Workflow runs results': '工作流运行结果',
         'Workflow run summary': '工作流运行摘要',
     };
+    const reviewThreadLabel = 'review-thread-collapsible tool-tip[for][data-type="label"]';
     const collaborationPages = ['repository/issues', 'repository/pulls', 'repository/pull', 'repository/compare'];
     const collaborationControls = [
         'react-app[app-name="repo"] [data-testid="header-title"]',
@@ -83,7 +84,7 @@
         '.js-merge-box .merge-message', 'dialog > h2', '[role="dialog"] > h2',
         '.js-discussion .timeline-comment-header button',
         '.compare-pr .subhead-heading', 'main .Subhead-heading', 'main .Subhead-description',
-        'main .SelectMenu-title', 'review-thread-collapsible tool-tip[for][data-type="label"]',
+        'main .SelectMenu-title', reviewThreadLabel,
     ].join(',');
     const collaborationProtected = [
         '[data-testid="issue-listitem-title-link"]', '[data-testid="listitem-title-link"]',
@@ -253,7 +254,12 @@
         if (route !== location.pathname) readRoute();
         if (showingOriginal) return false;
         const element = node.parentElement;
-        if (!page || !element?.closest(fixedOnPage) || element.closest(protectedContent) ||
+        if (!page || !element?.closest(fixedOnPage)) return false;
+        // GitHub hides this tooltip visually but its button still uses the accessible name.
+        const reviewLabel = pageKey === 'repository/pull' && element.matches(reviewThreadLabel) &&
+            element.matches('[aria-hidden="true"]:not([translate="no"],[hidden],[inert])');
+        const content = reviewLabel ? element.parentElement : element;
+        if (content.closest(protectedContent) ||
             (collaborationPages.includes(pageKey) && element.closest(collaborationProtected)) ||
             isIdentifier(element)) return false;
         const history = element.closest(commitHistoryControl);
@@ -322,7 +328,7 @@
         const actionPage = pageKey === 'repository/actions';
         const inRepositoryNav = element.closest(repositoryNav);
         const reviewTooltip = pageKey === 'repository/pull' &&
-            element.matches('review-thread-collapsible tool-tip[for][data-type="label"]');
+            element.matches(reviewThreadLabel);
         const exactOnly = pageKey === 'repository/releases' || (separateCountLabel && !commitCount.test(source)) ||
             (actionPage && element.closest(actionsFilterOption));
         const value = actionPage && element.matches('.sr-only') && element.closest(actionsList)
