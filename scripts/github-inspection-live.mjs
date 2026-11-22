@@ -9,14 +9,35 @@ import { chromium, expect } from '@playwright/test';
 
 const github = 'https://github.com';
 const timeout = 5000;
+const protectedContent = 'article, .markdown-body, pre, code, [contenteditable], [role="log"], textarea';
 const control = (location, source, attribute) => ({ location, source, ...(attribute && { attribute }) });
+const codeDownloadLabel = '[aria-label="Repository actions"] a[href^="/cli/cli/archive/refs/heads/"][href$=".zip"] [data-component="ActionList.Item.Label"]';
+const gitRefTabs = '[role="tablist"][aria-label="Ref type"] [role="tab"]';
+const failedActionsPath = '/cli/cli/actions?query=is%3Afailure';
+const milestonesPath = '/nodejs/node/milestones';
+const closedMilestonesQuery = '?state=closed';
+const runStatus = '.actions-workflow-stats > div > .col:nth-child(3)';
 const publicSamples = [
     {
         pageType: 'repository', path: '/cli/cli',
+        waitForLoad: true,
         controls: [
             control('nav a[data-tab-item="code"]', 'Code'),
             control('button[data-analytics-event*="searchbar_input_global_navbar"], button[data-target="qbsearch-input.inputButton"]',
                 'Search or jump to, type / to search', 'aria-label'),
+        ],
+    },
+    {
+        pageType: 'repository', path: '/cli/cli',
+        open: 'main button[aria-expanded][data-component="Button"]:has(svg.octicon-code)',
+        controls: [control(codeDownloadLabel, 'Download ZIP')],
+    },
+    {
+        pageType: 'repository', path: '/cli/cli',
+        open: '#ref-picker-repos-header-ref-selector',
+        controls: [
+            control(`${gitRefTabs}[id$="-tab-branch"]`, 'Branches'),
+            control(`${gitRefTabs}[id$="-tab-tag"]`, 'Tags'),
         ],
     },
     {
@@ -34,8 +55,20 @@ const publicSamples = [
         ],
     },
     {
-        pageType: 'repository/actions', path: '/cli/cli/actions?query=is%3Afailure',
+        pageType: 'repository/actions', path: failedActionsPath,
         controls: [control('react-app [data-component="PH_Title"]', 'All workflows')],
+    },
+    {
+        pageType: 'repository/actions', path: failedActionsPath,
+        follow: {
+            location: '[data-listview-item-title-container] a[href*="/actions/runs/"]',
+            pathname: /^\/cli\/cli\/actions\/runs\/\d+\/?$/,
+        },
+        controls: [
+            { ...control(`${runStatus} > span:first-child`, 'Status'), fixedSource: true },
+            { ...control(`${runStatus} > span.h4`, 'Failure'), fixedSource: true },
+            control('.actions-workflow-stats > div > .col:has(> a.h4[href]) > span:first-child', 'Total duration'),
+        ],
     },
     {
         pageType: 'repository/releases', path: '/cli/cli/releases/latest',
@@ -46,8 +79,25 @@ const publicSamples = [
         ],
     },
     {
-        pageType: 'repository/milestones', path: '/nodejs/node/milestones',
+        pageType: 'repository/milestones', path: milestonesPath,
         controls: [control('[data-testid="closed-milestone-tab"] > div', 'Closed')],
+    },
+    {
+        pageType: 'repository/milestones', path: milestonesPath,
+        follow: {
+            location: '[data-testid="closed-milestone-tab"][href]',
+            pathname: /^\/nodejs\/node\/milestones$/,
+            search: closedMilestonesQuery,
+        },
+        controls: [control('[data-testid="closed-milestone-tab"][aria-current="true"] > div', 'Closed')],
+    },
+    {
+        pageType: 'repository/milestone', path: milestonesPath + closedMilestonesQuery,
+        follow: {
+            location: 'main a[href*="/nodejs/node/milestone/"]',
+            pathname: /^\/nodejs\/node\/milestone\/\d+\/?$/,
+        },
+        controls: [control('[data-testid="milestone-status"] [data-component="StateLabel"]', 'Closed')],
     },
     {
         pageType: 'issues', path: '/issues',
@@ -56,55 +106,103 @@ const publicSamples = [
 ].map(({ path, ...sample }) => ({ ...sample, url: github + path }));
 
 async function readControls(page, controls) {
-    return page.evaluate(controls => controls.map(({ location, attribute }) => {
+    await Promise.all(controls.map(({ location }) =>
+        page.locator(location).first().waitFor({ state: 'attached', timeout }).catch(() => {})));
+    return page.evaluate(({ controls, protectedContent }) => controls.map(({ location, attribute }) => {
         const target = document.querySelector(location);
-        const protectedContent = 'article, .markdown-body, pre, code, [contenteditable], [role="log"], textarea';
-        if (!target || target.closest(protectedContent) ||
+        if (!target?.checkVisibility({ visibilityProperty: true }) || target.closest(protectedContent) ||
+            (attribute && target.closest('[aria-hidden="true"], [inert]')) ||
             (!attribute && target.querySelector(protectedContent))) return '';
         const value = attribute ? target.getAttribute(attribute) : target.innerText;
         return (value ?? '').trim().replace(/\s+/g, ' ').slice(0, 260);
-    }), controls);
+    }), { controls, protectedContent });
+}
+
+async function navigate(page, url) {
+    const response = await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 15_000 }).catch(() => null);
+    if (!response) return 'Navigation failed';
+    if (!response.ok()) return `HTTP ${response.status()}`;
+    const current = new URL(page.url());
+    if (current.origin !== github || /^\/(?:login|session|sessions)(?:\/|$)/.test(current.pathname)) {
+        return 'Page requires GitHub access';
+    }
+}
+
+function approvedDetail(url, { pathname, search = '' }) {
+    return url.origin === github && !url.username && !url.password &&
+        url.search === search && !url.hash && pathname.test(url.pathname);
+}
+
+async function publicDetail(page, follow) {
+    const links = page.locator(follow.location);
+    await links.first().waitFor({ state: 'attached', timeout }).catch(() => {});
+    const addresses = await links.evaluateAll((elements, protectedContent) => elements
+        .filter(link => link.checkVisibility({ visibilityProperty: true }) && !link.closest(protectedContent))
+        .map(link => link.getAttribute('href')), protectedContent);
+    return addresses.filter(href => href && URL.canParse(href, page.url()))
+        .map(href => new URL(href, page.url()))
+        .find(url => approvedDetail(url, follow));
+}
+
+export async function routePublicGithub(route) {
+    const request = route.request();
+    const address = new URL(request.url());
+    if (!['GET', 'HEAD'].includes(request.method()) ||
+        ![github, 'https://github.githubassets.com'].includes(address.origin)) return route.abort();
+    if (request.isNavigationRequest() &&
+        publicSamples.some(({ follow }) => follow && approvedDetail(address, follow))) {
+        const response = await route.fetch({ maxRedirects: 0, timeout: 12_000 }).catch(() => null);
+        if (!response || (response.status() >= 300 && response.status() < 400)) return route.abort();
+        return route.fulfill({ response });
+    }
+    return route.continue();
+}
+
+async function openControl(page, location) {
+    const trigger = page.locator(location).first();
+    try {
+        // Some controls are hydrated at load, or already expanded below the viewport.
+        await page.waitForLoadState('load', { timeout }).catch(() => {});
+        await trigger.scrollIntoViewIfNeeded({ timeout });
+        if (await trigger.getAttribute('aria-expanded', { timeout }) === 'false') await trigger.click({ timeout });
+    } catch {
+        // A missing control will be represented by the empty rendered value.
+    }
 }
 
 export async function collectGithubSamples(page, setLocalization, samples = publicSamples) {
     const results = [];
-    for (const { pageType, url, controls, open } of samples) {
+    for (const { pageType, url, controls, open, follow, waitForLoad } of samples) {
         const result = { pageType, url };
-        let response;
-        try {
-            response = await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 15_000 });
-        } catch {
-            results.push({ ...result, error: 'Navigation failed' });
-            continue;
-        }
-        if (!response?.ok()) {
-            results.push({ ...result, error: response ? `HTTP ${response.status()}` : 'No navigation response' });
-            continue;
-        }
-        const location = new URL(page.url());
-        if (location.origin !== github || /^\/(?:login|session|sessions)(?:\/|$)/.test(location.pathname)) {
-            results.push({ ...result, error: 'Page requires GitHub access' });
-            continue;
-        }
-        if (open) {
-            const summary = page.locator(open).first();
-            try {
-                // GitHub may render the lazy asset list already expanded, below the viewport.
-                await summary.scrollIntoViewIfNeeded({ timeout });
-                if (await summary.getAttribute('aria-expanded', { timeout }) === 'false') await summary.click({ timeout });
-            } catch {
-                // A missing control will be represented by the empty rendered value.
+        const previous = results.at(-1);
+        const reuseIndex = follow && previous?.url === url && !previous.error && page.url() === url;
+        let error = reuseIndex ? undefined : await navigate(page, url);
+        if (!error && follow) {
+            const detail = await publicDetail(page, follow);
+            if (detail) {
+                result.url = detail.href;
+                error = await navigate(page, detail.href);
+                if (!error && page.url() !== detail.href) error = 'Unexpected detail page';
+            } else {
+                error = 'Expected public link not found';
             }
         }
-        await Promise.all(controls.map(({ location }) =>
-            page.locator(location).first().waitFor({ state: 'attached', timeout }).catch(() => {})));
+        if (error) {
+            results.push({ ...result, error });
+            continue;
+        }
+        if (waitForLoad) await page.waitForLoadState('load', { timeout }).catch(() => {});
+        if (open) await openControl(page, open);
         const baseline = await readControls(page, controls);
         await setLocalization(true);
         try {
+            if (open) await openControl(page, open);
             const rendered = await readControls(page, controls);
             results.push({
-                ...result, controls: controls.map((item, index) => ({
-                    ...item, source: baseline[index] || item.source, rendered: rendered[index],
+                ...result, controls: controls.map(({ fixedSource, ...item }, index) => ({
+                    ...item,
+                    source: fixedSource ? item.source : baseline[index] || item.source,
+                    rendered: fixedSource && baseline[index] !== item.source ? '' : rendered[index],
                 })),
             });
         } finally {
@@ -129,12 +227,7 @@ async function inspectLive(mode) {
             channel: 'chromium',
             args: [`--disable-extensions-except=${extension}`, `--load-extension=${extension}`, '--disable-background-networking'],
         });
-        await context.route(/^https?:\/\//, route => {
-            const address = new URL(route.request().url());
-            const readOnly = ['GET', 'HEAD'].includes(route.request().method());
-            return readOnly && [github, 'https://github.githubassets.com'].includes(address.origin)
-                ? route.continue() : route.abort();
-        });
+        await context.route(/^https?:\/\//, routePublicGithub);
         const [worker = await context.waitForEvent('serviceworker', { timeout })] = context.serviceWorkers();
         const page = context.pages()[0];
         const popup = await context.newPage();

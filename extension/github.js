@@ -10,6 +10,7 @@
     const pendingSearch = 'qbsearch-input:not(:defined)';
     const headerLabelControls = 'header[aria-label], button[aria-label]';
     const repositoryNav = 'nav[aria-label="Repository"], nav[aria-label="Repository navigation"], nav[data-testid="repository-navbar"]';
+    const codeArchiveLabel = 'ul[data-component="ActionList"][aria-label="Repository actions"] a[href*="/archive/refs/heads/"][href$=".zip"] [data-component="ActionList.Item.Label"]';
     const commitHistoryControl = 'a[data-component="LinkButton"][href*="/commits/"]';
     const commitHistoryLabel = ':scope > [data-component="text"], :scope > [data-component="buttonContent"] > [data-component="text"]';
     const commitCount = /^(?:\d+|\d{1,3}(?:,\d{3})+) [Cc]ommits?$/;
@@ -237,7 +238,7 @@
         page = dashboard || repositoryPage ? dictionary[pageKey] : null;
         repoPath = repositoryPage ? `/${owner}/${repo}`.toLowerCase() : '';
         const collaboration = collaborationPages.includes(pageKey);
-        fixedOnPage = [fixed, actions && actionsFixed, collaboration && collaborationControls,
+        fixedOnPage = [fixed, !section && codeArchiveLabel, actions && actionsFixed, collaboration && collaborationControls,
             releasePage && releaseControls, milestonePage && milestoneControls, dashboard && dashboardFixed,
             milestoneList && 'main h1[data-component="PH_Title"], main a[data-component="Button"][href$="/milestones/new"]',
         ].filter(Boolean).join(',');
@@ -342,6 +343,13 @@
             (collaborationPages.includes(pageKey) && element.closest(collaborationProtected)) ||
             (milestonePage && element.closest(milestoneProtected)) ||
             isIdentifier(element)) return false;
+        const archive = element.closest(codeArchiveLabel);
+        if (archive) {
+            const { origin, pathname, search, hash } = archive.closest('a[href]');
+            if (pageKey !== 'repository' || origin !== location.origin || search || hash ||
+                !pathname.toLowerCase().startsWith(repoPath + '/archive/refs/heads/') ||
+                originalText(archive) !== 'Download ZIP') return false;
+        }
         const history = element.closest(commitHistoryControl);
         if (history) {
             const label = history.querySelector(commitHistoryLabel);
