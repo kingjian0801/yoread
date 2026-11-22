@@ -50,7 +50,28 @@ test('keeps manual webpage translation of linked prose independent of the dashbo
 
 test('localizes built-in Issues dashboard navigation without touching custom views or links', async ({ browserApp }) => {
     const { fixture, open, page } = browserApp;
-    fixture.html = dashboard;
+    fixture.html = dashboard + `
+        <div id="new-view-panel"></div>
+        <script>
+            const panel = document.querySelector('#new-view-panel');
+            document.querySelector('#new-view').addEventListener('click', () => {
+                panel.innerHTML = '<form role="dialog" aria-labelledby="view-title">' +
+                    '<h2 id="view-title" data-component="Dialog.Title">Create a view</h2>' +
+                    '<label>Title <input></label><label>Description <textarea></textarea></label>' +
+                    '<label>Icon <select><option>Circle</option></select></label>' +
+                    '<label>Query <input value="is:issue is:open"></label><button>Save view</button></form>';
+                panel.querySelector('form').onsubmit = event => {
+                    event.preventDefault();
+                    const [title, description, , query] = panel.querySelector('form').elements;
+                    document.querySelector('a[href="${saved}"]').textContent = title.value;
+                    document.querySelector('h1').textContent = title.value;
+                    document.querySelector('[data-component="PageHeader.Description"]').textContent = description.value;
+                    document.querySelector('#query').value = query.value;
+                    history.pushState(null, '', '${saved}');
+                    panel.replaceChildren();
+                };
+            });
+        </script>`;
     const popup = await open('github.com', '/issues');
     await popup.getByRole('switch', { name: 'GitHub 界面汉化' }).check();
     await expect(page.getByRole('link', { name: '已创建', exact: true })).toHaveAttribute('href', '/issues');
@@ -65,10 +86,18 @@ test('localizes built-in Issues dashboard navigation without touching custom vie
     await expect(page.getByRole('link', { name: 'Open', exact: true }).last()).toHaveAttribute('href', '/acme/demo/issues/2');
     await expect(page.getByTestId('state-label')).toHaveText('打开');
 
-    await page.getByRole('link', { name: 'Open', exact: true }).first().click();
+    await page.getByRole('button', { name: '新建视图' }).click();
+    const editor = page.getByRole('dialog', { name: '新建视图' });
+    await editor.getByRole('textbox', { name: '标题' }).fill('Open');
+    await editor.getByRole('textbox', { name: '描述' }).fill('No results');
+    await expect(editor.getByRole('combobox', { name: '图标' })).toHaveValue('Circle');
+    await editor.getByRole('textbox', { name: '查询' }).fill('is:pr is:open');
+    await editor.getByRole('button', { name: '保存视图' }).click();
     await expect(page).toHaveURL('https://github.com' + saved);
     await expect(page.getByRole('button', { name: '新建视图' })).toBeVisible();
-    await expect(page.getByRole('heading', { name: 'Created by me', exact: true })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Open', exact: true })).toBeVisible();
+    await expect(page.locator('[data-component="PageHeader.Description"]')).toHaveText('No results');
+    await expect(page.getByRole('textbox', { name: '搜索议题' })).toHaveValue('is:pr is:open');
 });
 
 test('applies dashboard filters, edits a saved view, and restores the latest UI text', async ({ browserApp }) => {
