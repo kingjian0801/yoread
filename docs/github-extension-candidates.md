@@ -47,6 +47,6 @@ Safari 默认使用临时签名进行包结构校验。已有对应团队的 App
 
 `candidate.json` 记录 Git 提交、标签、版本、四端产物与 SHA-256 摘要、产物用途、签名类型、分发渠道和源码许可清单。未签名的商店提交包与本机验收包分别记录。新生成的记录为未提交、待验收，实际公开安装链接随各商店的验收记录填写。保存原始候选记录及 `SHA256SUMS`，在验收记录中使用同一 Git 提交和包摘要关联最终公开版本。
 
-GitHub Actions 的 [Candidate packages](../.github/workflows/candidate-packages.yml) 在同仓 PR 或 `main` 的 CI 结束后运行，先核对 `Repository checks` 通过。生产部署失败时，已通过门禁的 `main` 仍可取得候选包。PR 候选记录开发分支的源提交，PR 门禁验证 GitHub 生成的合并预览。用于发布验收的候选取自 `main`。
+同仓 PR 的 CI 成功后，[Candidate packages](../.github/workflows/candidate-packages.yml) 为开发分支的源提交打包，PR 门禁验证 GitHub 生成的合并预览。用于发布验收的候选取自 `main`，由该分支的 CI 在 `Repository checks` 通过后直接启动打包。生产部署和打包各自依赖同一个门禁，可以并行完成。
 
 工作流在 GitHub 托管的 macOS Runner 构建并校验源提交。下载 `yoread-candidate-<提交 SHA>` 可取得四端产物、源码、候选记录和校验值。云端 Safari 候选使用临时签名，商店分发签名与安装验收在发布时完成。
