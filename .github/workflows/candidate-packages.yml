@@ -5,18 +5,35 @@ on:
     workflows: [CI]
     types: [completed]
 
-permissions:
-  contents: read
+permissions: {}
 
 jobs:
+  checks:
+    name: Verify upstream repository checks
+    if: >-
+      github.event.workflow_run.head_repository.id == github.event.repository.id &&
+      ((github.event.workflow_run.event == 'pull_request' && github.event.workflow_run.conclusion == 'success') ||
+        (github.event.workflow_run.head_branch == 'main' &&
+          (github.event.workflow_run.conclusion == 'success' || github.event.workflow_run.conclusion == 'failure') &&
+          (github.event.workflow_run.event == 'push' || github.event.workflow_run.event == 'workflow_dispatch')))
+    permissions:
+      actions: read
+    runs-on: ubuntu-24.04
+    timeout-minutes: 3
+    steps:
+      - env:
+          GH_TOKEN: ${{ github.token }}
+          CI_RUN_ID: ${{ github.event.workflow_run.id }}
+        run: |
+          result=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$CI_RUN_ID/jobs?per_page=100" \
+            --jq '.jobs[] | select(.name == "Repository checks") | .conclusion')
+          test "$result" = success
+
   package:
     name: Archive four browser candidates
-    if: >-
-      github.event.workflow_run.conclusion == 'success' &&
-      github.event.workflow_run.head_repository.id == github.event.repository.id &&
-      (github.event.workflow_run.event == 'pull_request' ||
-        (github.event.workflow_run.head_branch == 'main' &&
-          (github.event.workflow_run.event == 'push' || github.event.workflow_run.event == 'workflow_dispatch')))
+    needs: checks
+    permissions:
+      contents: read
     runs-on: macos-26
     timeout-minutes: 20
     steps:
