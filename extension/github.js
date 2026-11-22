@@ -119,6 +119,32 @@
         ['Open pull request', '开放的拉取请求'], ['Draft pull request', '拉取请求草稿'],
         ['Closed pull request', '已关闭的拉取请求'], ['Merged pull request', '已合并的拉取请求'],
     ]);
+    const milestoneStates = '[data-testid="open-milestone-tab"], [data-testid="milestone-status"] [data-component="StateLabel"]';
+    const milestoneControls = [
+        milestoneStates, '[data-testid="closed-milestone-tab"]', '[data-testid="milestone-status"]',
+        '[class*="milestoneListWrapper__"] [id$="-list-view-container-title"]',
+        '[class*="milestoneRow__"] [class*="milestoneIssueCount__"]',
+        '[class*="milestoneRow__"] [class*="milestoneData__"]',
+        '[class*="milestoneRow__"] [class*="listProgressSection__"]',
+        '[class*="milestoneDetailsWrapper__"] [class*="progressSection__"]',
+        '[class*="stateFilters__"] a[data-component="Text"]',
+        'nav a[data-component="NavList.Item"][href$="/milestones"]', '[role="menuitemradio"]',
+    ].join(',');
+    const milestoneProtected = [
+        '#milestone-description', '[class*="milestoneDescription__"]',
+        '[data-testid="issue-listitem-title-link"]', '[class*="milestoneRow__"] h3',
+        '[class*="milestoneDetailsWrapper__"] [data-component="PH_Title"]',
+        '[class*="IssueLabel-"]', 'button[aria-label^="Filter by label "]',
+    ].join(',');
+    const milestoneLabels = [
+        '[class*="milestoneListWrapper__"][role="group"][aria-label]',
+        '[role="region"][aria-label]', '[class*="stateFilters__"][aria-label]',
+    ].join(',');
+    const milestoneWording = new Map([
+        ['Milestones', '里程碑'], ['Milestone issues', '里程碑议题'],
+        ['Filter issues by state', '按状态筛选议题'], ['List view', '列表视图'],
+        ['New milestone', '新建里程碑'],
+    ]);
     const userContent = [
         'article', '.markdown-body', '.js-comment-body', '.comment-body',
         '.js-issue-title', '.markdown-title', '[data-testid="issue-title"]',
@@ -157,6 +183,7 @@
     let pageKey;
     let page;
     let fixedOnPage = fixed;
+    let milestonePage = false;
     let repoPath;
     let labelsOnPage = headerLabelControls;
     let ignore;
@@ -175,15 +202,19 @@
         const releasePage = section === 'releases' &&
             (!subpage || subpage === 'latest' || (subpage === 'tag' && slug));
         const actions = kind === 'actions' && actionsRoute.test(route);
-        const supported = !section || actions || releasePage || (section === kind && ['issues', 'pull', 'pulls', 'compare'].includes(kind));
+        const milestoneList = section === 'milestones' && !subpage;
+        milestonePage = milestoneList || (section === 'milestone' && /^\d+$/.test(subpage) && !slug);
+        const supported = !section || actions || releasePage || milestonePage || (section === kind && ['issues', 'pull', 'pulls', 'compare'].includes(kind));
         const reserved = owner && ('/' + owner.toLowerCase() + '/').match(upstream.conf.rePagePath)?.[1] === owner.toLowerCase();
         pageKey = kind ? `repository/${kind}` : 'repository';
         page = owner && repo && !reserved && supported ? dictionary[pageKey] : null;
         const collaboration = collaborationPages.includes(pageKey);
         fixedOnPage = [fixed, actions && actionsFixed, collaboration && collaborationControls,
-            releasePage && releaseControls].filter(Boolean).join(',');
+            releasePage && releaseControls, milestonePage && milestoneControls,
+            milestoneList && 'main h1[data-component="PH_Title"], main a[data-component="Button"][href$="/milestones/new"]',
+        ].filter(Boolean).join(',');
         labelsOnPage = [headerLabelControls, actions && actionsLabels, collaboration && collaborationAria,
-            releasePage && releaseLabels].filter(Boolean).join(',');
+            releasePage && releaseLabels, milestonePage && milestoneLabels].filter(Boolean).join(',');
         repoPath = page ? `/${owner}/${repo}`.toLowerCase() : '';
         // The upstream feature varies these exclusions by page and combines its global entries.
         const skip = upstream.conf.ignoreSelectorPage;
@@ -261,6 +292,7 @@
         const content = reviewLabel ? element.parentElement : element;
         if (content.closest(protectedContent) ||
             (collaborationPages.includes(pageKey) && element.closest(collaborationProtected)) ||
+            (milestonePage && element.closest(milestoneProtected)) ||
             isIdentifier(element)) return false;
         const history = element.closest(commitHistoryControl);
         if (history) {
@@ -333,11 +365,21 @@
             (actionPage && element.closest(actionsFilterOption));
         const value = actionPage && element.matches('.sr-only') && element.closest(actionsList)
             ? translateActionStatus(source)
-            : (reviewTooltip ? collaborationLabels.get(source) : null) ??
+            : (milestonePage ? milestoneText(element, source) : null) ??
+                (reviewTooltip ? collaborationLabels.get(source) : null) ??
                 lookup(source, Boolean(exactOnly), !inRepositoryNav);
         const rendered = value && value !== source ? original.replace(trimmed, () => value) : original;
         if (rendered !== original) changed.set(node, { original, rendered });
         if (node.data !== rendered) node.data = rendered;
+    }
+
+    function milestoneText(element, source) {
+        if (source === 'Open' && element.closest(milestoneStates)) return '进行中';
+        if (element.closest('[class*="milestoneIssueCount__"]')) {
+            const matched = source.match(/^([\d,]+\/[\d,]+ )?issues closed$/);
+            if (matched) return (matched[1] ?? '') + '议题关闭';
+        }
+        return milestoneWording.get(source);
     }
 
     function ownsLabel(element) {
@@ -345,6 +387,10 @@
         if (pageKey === 'repository/actions' && element.matches(actionsLabels) &&
             !element.closest(protectedContent) && (!ignore || !element.closest(ignore))) return true;
         if (isReleaseControl(element, releaseLabels)) return true;
+        if (milestonePage && element.matches(milestoneLabels)) {
+            return !element.closest(protectedContent) && !element.closest(milestoneProtected) &&
+                (!ignore || !element.closest(ignore));
+        }
         const header = element.closest(globalHeader);
         if (header) {
             return headerReady(header) && element.matches(headerLabelControls) &&
@@ -387,6 +433,8 @@
             else rendered = Object.hasOwn(actionsLabelTerms, original) ? actionsLabelTerms[original] : lookup(original, true);
         } else if (isReleaseControl(element, releaseLabels)) {
             rendered = lookup(original, true);
+        } else if (milestonePage && element.matches(milestoneLabels)) {
+            rendered = milestoneWording.get(original);
         } else if (collaborationLabels.has(original)) {
             rendered = collaborationLabels.get(original) ?? lookup(original, true);
         }
