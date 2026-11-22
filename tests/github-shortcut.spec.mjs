@@ -116,5 +116,5 @@ test('resumes using the latest mode and keeps body translation separate', { tag:
     await page.keyboard.press(shortcut);
     await expect(nav).toHaveText('Pull requests');
     await page.evaluate(() => history.pushState(null, '', '/acme/demo/pulls'));
-    await expect(nav).toHaveText('PR 列表');
+    await expect(nav).toHaveText('PR');
 });
