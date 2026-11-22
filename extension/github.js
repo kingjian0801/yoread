@@ -54,6 +54,57 @@
         'Workflow runs results': '工作流运行结果',
         'Workflow run summary': '工作流运行摘要',
     };
+    const collaborationPages = ['repository/issues', 'repository/pulls', 'repository/pull', 'repository/compare'];
+    const collaborationControls = [
+        'react-app[app-name="repo"] [data-testid="header-title"]',
+        'react-app[app-name="repo"] [id$="-list-view-container-title"]',
+        'react-app[app-name="repo"] a[data-component="NavList.Item"]',
+        'react-app[app-name="repo"] ul[class*="stateFilters__"] a[data-component="Text"]',
+        'react-app[app-name="repo"] [id$="-list-view-metadata"] a[data-component="Text"]',
+        'react-app[app-name="repo"] a[data-component="Pagination.Page"]',
+        'react-app[app-name="repo"] a[data-component="Button"]',
+        '[data-testid="header-state"][data-component="StateLabel"]',
+        'react-app[app-name="repo"] [class*="metadataTitle__"]',
+        'react-app[app-name="repo"] [data-testid^="sidebar-"] h3[data-component="Heading"]',
+        '.gh-header-meta .State', '.gh-header-show .tabnav-tab',
+        '.js-merge-box .merge-message', 'dialog > h2', '[role="dialog"] > h2',
+        '.js-discussion .timeline-comment-header button',
+        '.compare-pr .subhead-heading', 'main .Subhead-heading', 'main .Subhead-description',
+        'main .SelectMenu-title', 'review-thread-collapsible tool-tip[for][data-type="label"]',
+    ].join(',');
+    const collaborationProtected = [
+        '[data-testid="issue-listitem-title-link"]', '[data-testid="listitem-title-link"]',
+        '.js-issue-row .Link--primary', '.EditableTitle', '[data-component="IssueLabel"]',
+        '[class*="IssueLabel-"]', 'button[aria-label^="Filter by label "]',
+        '[aria-label^="Filter by author "]', '.gh-header-title', '.js-preview-body',
+        '.commit-desc', '[class*="inlineTitle__"]',
+        '.commitish-suggester [data-menu-button]', '.commitish-suggester [id^="ref-list-"]',
+        'td.blob-code', '.diff-text-inner', '.react-diff-view',
+        'span.PRIVATE_TreeView-item-content-text', '[data-testid="file-name"]',
+    ].join(',');
+    const compareRefSearch = '.commitish-suggester input[id^="context-commitish-filter-field-"]';
+    const collaborationAria = [
+        `${compareRefSearch}[aria-label]`,
+        'button[data-component="Button"][aria-label]', 'dialog[aria-label]', '[role="dialog"][aria-label]',
+        'dialog button[aria-label]', '[role="dialog"] button[aria-label]',
+        'nav[aria-label]', 'div[role="toolbar"][aria-label]',
+        '#issues-index-filter[aria-label]', '#repo-pulls-dashboard-filter[aria-label]',
+        '#issues-index-filter-results[aria-label]', '#repo-pulls-dashboard-filter-results[aria-label]',
+        'div[role="search"][aria-label]', 'ul[data-component="SegmentedControl"][aria-label]',
+        'svg.octicon[role="img"][aria-label]',
+    ].join(',');
+    const collaborationLabels = new Map([
+        ['Search issues', null], ['Search pull requests', null], ['Suggestions', null], ['Pull requests', null],
+        ['Filter by author', null], ['Filter by label', null], ['Filter by projects', null],
+        ['Filter by milestones', null], ['Filter by reviews', null], ['Filter by assignee', null],
+        ['Issue filters', '议题筛选'], ['Pull request filters', '拉取请求筛选'],
+        ['Pull requests display density', '拉取请求列表显示密度'], ['Close dialog', '关闭对话框'],
+        ['Pull request navigation', null], ['Pull request', null],
+        ['Find a branch', null], ['Find a tag', null], ['Close menu', null], ['Comment thread', '评论讨论串'],
+        ['Open', null], ['Closed', null], ['Merged', null], ['Issue', '议题'],
+        ['Open pull request', '开放的拉取请求'], ['Draft pull request', '拉取请求草稿'],
+        ['Closed pull request', '已关闭的拉取请求'], ['Merged pull request', '已合并的拉取请求'],
+    ]);
     const userContent = [
         'article', '.markdown-body', '.js-comment-body', '.comment-body',
         '.js-issue-title', '.markdown-title', '[data-testid="issue-title"]',
@@ -90,8 +141,9 @@
     let route;
     let pageKey;
     let page;
+    let fixedOnPage = fixed;
     let repoPath;
-    let fixedForRoute = fixed;
+    let labelsOnPage = headerLabelControls;
     let ignore;
     let timer;
     let searchTimer;
@@ -106,12 +158,14 @@
         const [owner, repo, section] = route.split('/').filter(Boolean);
         const kind = route.match(upstream.conf.rePagePathRepo)?.[1];
         const actions = kind === 'actions' && actionsRoute.test(route);
-        const supported = !section || actions || (section === kind && ['issues', 'pull', 'pulls'].includes(kind));
+        const supported = !section || actions || (section === kind && ['issues', 'pull', 'pulls', 'compare'].includes(kind));
         const reserved = owner && ('/' + owner.toLowerCase() + '/').match(upstream.conf.rePagePath)?.[1] === owner.toLowerCase();
         pageKey = kind ? `repository/${kind}` : 'repository';
         page = owner && repo && !reserved && supported ? dictionary[pageKey] : null;
+        const collaboration = collaborationPages.includes(pageKey);
+        fixedOnPage = [fixed, actions && actionsFixed, collaboration && collaborationControls].filter(Boolean).join(',');
+        labelsOnPage = [headerLabelControls, actions && actionsLabels, collaboration && collaborationAria].filter(Boolean).join(',');
         repoPath = page ? `/${owner}/${repo}`.toLowerCase() : '';
-        fixedForRoute = actions ? `${fixed},${actionsFixed}` : fixed;
         // The upstream feature varies these exclusions by page and combines its global entries.
         const skip = upstream.conf.ignoreSelectorPage;
         ignore = [...(skip['*'] || []), ...(skip[pageKey] || [])].join(',');
@@ -160,6 +214,11 @@
         const link = element.closest('a[href]');
         if (!link) return false;
         const path = link.pathname.toLowerCase().replace(/\/+$/, '');
+        if (pageKey === 'repository/issues' && path === '/login' && link.origin === location.origin &&
+            link.matches('a[data-component="Button"]')) {
+            const destination = new URL(link.href).searchParams.get('return_to');
+            if (destination === location.origin + location.pathname) return false;
+        }
         if (link.origin !== location.origin || !path.startsWith(repoPath + '/')) {
             // GitHub marks its Code tab, which can share a label and URL with the repository name.
             return path !== repoPath || !/^(?:Code|代码)$/.test(link.textContent.trim()) ||
@@ -174,7 +233,8 @@
         if (route !== location.pathname) readRoute();
         if (showingOriginal) return false;
         const element = node.parentElement;
-        if (!page || !element?.closest(fixedForRoute) || element.closest(protectedContent) ||
+        if (!page || !element?.closest(fixedOnPage) || element.closest(protectedContent) ||
+            (collaborationPages.includes(pageKey) && element.closest(collaborationProtected)) ||
             isIdentifier(element)) return false;
         const history = element.closest(commitHistoryControl);
         if (history) {
@@ -193,12 +253,13 @@
         if (route !== location.pathname) readRoute();
         const element = node.parentElement;
         return Boolean(page && element && (element.closest(identifiers) || element.closest('relative-time') ||
+            (collaborationPages.includes(pageKey) && element.closest(collaborationProtected)) ||
             (pageKey === 'repository/actions' && isIdentifier(element)) ||
-            (element.closest(fixedForRoute) && !element.closest(userContent))));
+            (element.closest(fixedOnPage) && !element.closest(userContent))));
     }
 
-    function lookup(source, exactOnly = false) {
-        const scopedTerms = globalThis.yoreadGitHubPageTerms?.[pageKey];
+    function lookup(source, exactOnly = false, useScopedTerms = true) {
+        const scopedTerms = useScopedTerms && globalThis.yoreadGitHubPageTerms?.[pageKey];
         for (const entries of [scopedTerms, terms]) {
             if (!entries || !Object.hasOwn(entries, source)) continue;
             const override = entries[source][mode];
@@ -239,23 +300,40 @@
         const element = node.parentElement;
         const separateCountLabel = element.closest(commitHistoryControl);
         const actionPage = pageKey === 'repository/actions';
+        const inRepositoryNav = element.closest(repositoryNav);
+        const reviewTooltip = pageKey === 'repository/pull' &&
+            element.matches('review-thread-collapsible tool-tip[for][data-type="label"]');
         const exactOnly = (separateCountLabel && !commitCount.test(source)) ||
             (actionPage && element.closest(actionsFilterOption));
         const value = actionPage && element.matches('.sr-only') && element.closest(actionsList)
             ? translateActionStatus(source)
-            : lookup(source, Boolean(exactOnly));
+            : (reviewTooltip ? collaborationLabels.get(source) : null) ??
+                lookup(source, Boolean(exactOnly), !inRepositoryNav);
         const rendered = value && value !== source ? original.replace(trimmed, () => value) : original;
         if (rendered !== original) changed.set(node, { original, rendered });
         if (node.data !== rendered) node.data = rendered;
     }
 
     function ownsLabel(element) {
+        if (!page) return false;
         if (pageKey === 'repository/actions' && element.matches(actionsLabels) &&
             !element.closest(protectedContent) && (!ignore || !element.closest(ignore))) return true;
         const header = element.closest(globalHeader);
-        return page && header && headerReady(header) && element.matches(headerLabelControls) &&
-            !element.closest(protectedContent) && !element.closest(pendingSearch) &&
-            (!ignore || !element.closest(ignore));
+        if (header) {
+            return headerReady(header) && element.matches(headerLabelControls) &&
+                !element.closest(protectedContent) && !element.closest(pendingSearch) &&
+                (!ignore || !element.closest(ignore));
+        }
+        if (!collaborationPages.includes(pageKey) || !element.matches(collaborationAria) ||
+            !element.closest('main, react-app[app-name="repo"]') || element.closest(collaborationProtected)) {
+            return false;
+        }
+        // Status icon names are announced by the browser. Their SVG descendants stay untouched.
+        const nonText = element.matches(`svg.octicon[role="img"],${compareRefSearch}`);
+        if (nonText && element.matches('[aria-hidden="true"],[hidden],[inert],[translate="no"]')) return false;
+        const protectedElement = nonText ? element.parentElement : element;
+        return protectedElement && !protectedElement.closest(protectedContent) &&
+            (!ignore || !protectedElement.closest(ignore));
     }
 
     function translateActionStatus(source) {
@@ -265,22 +343,27 @@
         return status ? `${status}：${match[2]}` : null;
     }
 
-    function translateLabel(element) {
+    function translateLabel(element, refreshTerms) {
         if (!ownsLabel(element)) return;
-        const original = element.getAttribute('aria-label');
-        if (changedLabels.get(element)?.rendered === original) return;
+        const current = element.getAttribute('aria-label');
+        const previous = changedLabels.get(element);
+        const stillLocalized = previous?.rendered === current;
+        if (stillLocalized && !refreshTerms) return;
+        const original = stillLocalized ? previous.original : current;
         changedLabels.delete(element);
-        const headerLabels = globalThis.yoreadGitHubHeaderLabels;
         let rendered;
-        if (pageKey === 'repository/actions' && element.matches(actionsLabels)) {
+        if (element.closest(globalHeader)) {
+            const headerLabels = globalThis.yoreadGitHubHeaderLabels;
+            if (headerLabels && Object.hasOwn(headerLabels, original)) rendered = headerLabels[original];
+        } else if (pageKey === 'repository/actions' && element.matches(actionsLabels)) {
             if (element.matches('li')) rendered = translateActionStatus(original);
             else rendered = Object.hasOwn(actionsLabelTerms, original) ? actionsLabelTerms[original] : lookup(original, true);
-        } else if (headerLabels && Object.hasOwn(headerLabels, original)) {
-            rendered = headerLabels[original];
+        } else if (collaborationLabels.has(original)) {
+            rendered = collaborationLabels.get(original) ?? lookup(original, true);
         }
-        if (!rendered || rendered === original) return;
-        changedLabels.set(element, { original, rendered });
-        element.setAttribute('aria-label', rendered);
+        if (rendered && rendered !== original) changedLabels.set(element, { original, rendered });
+        const value = rendered ?? original;
+        if (current !== value) element.setAttribute('aria-label', value);
     }
 
     function ownsTime(element) {
@@ -307,19 +390,15 @@
         if (root.nodeType !== Node.ELEMENT_NODE) return;
         if (root.matches(relativeTime)) localizeTime(root);
         for (const time of root.querySelectorAll(relativeTime)) localizeTime(time);
-        if (pageKey === 'repository/actions') {
-            if (root.matches(actionsLabels)) translateLabel(root);
-            for (const element of root.querySelectorAll(actionsLabels)) translateLabel(element);
-        }
-        const scopes = root.closest(fixedForRoute) ? [root] : [...root.querySelectorAll(fixedForRoute)]
-            .filter(scope => !scope.parentElement?.closest(fixedForRoute));
+        if (root.matches(labelsOnPage)) translateLabel(root, refreshTerms);
+        for (const element of root.querySelectorAll(labelsOnPage)) translateLabel(element, refreshTerms);
+        const scopes = root.closest(fixedOnPage) ? [root] : [...root.querySelectorAll(fixedOnPage)]
+            .filter(scope => !scope.parentElement?.closest(fixedOnPage));
         for (const scope of scopes) {
             const header = scope.closest(globalHeader);
             if (header && headerReady(header)) {
                 const search = scope.closest(pendingSearch) ?? scope.querySelector(pendingSearch);
                 if (search) waitForSearch(search);
-                if (scope.matches(headerLabelControls)) translateLabel(scope);
-                for (const element of scope.querySelectorAll(headerLabelControls)) translateLabel(element);
             }
             const walker = document.createTreeWalker(scope, NodeFilter.SHOW_TEXT);
             while (walker.nextNode()) translate(walker.currentNode, refreshTerms);
@@ -387,8 +466,7 @@
                     schedule(record.target);
                 } else if (record.attributeName === 'aria-label' &&
                     (changedLabels.has(record.target) ||
-                        (pageKey === 'repository/actions' && record.target.matches(actionsLabels)) ||
-                        (record.target.matches(headerLabelControls) && record.target.closest(globalHeader))) &&
+                        record.target.matches(labelsOnPage)) &&
                     changedLabels.get(record.target)?.rendered !== record.target.getAttribute('aria-label')) {
                     schedule(record.target);
                 } else if (record.target.matches('relative-time') && (record.attributeName === 'datetime' ||
