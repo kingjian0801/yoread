@@ -143,3 +143,139 @@ test('localizes Actions filters and finds a failed run without changing identifi
     await expect(page.getByRole('heading', { name: 'Status' })).toBeVisible();
     await expect(page.getByRole('button', { name: '状态' })).toBeVisible();
 });
+
+test('keeps a terminal region and its accessible labels in the original language', async ({ browserApp }) => {
+    const { fixture, open, page } = browserApp;
+    fixture.html = `
+        <main><react-app>
+            <section class="terminal" aria-label="Failure">
+                <div role="group" aria-label="Status"><button>Failure</button></div>
+                <relative-time datetime="2026-11-19T17:29:58Z">November 19, 2026</relative-time>
+            </section>
+        </react-app></main>`;
+    const popup = await open('github.com', run);
+    await popup.getByRole('switch', { name: 'GitHub 界面汉化' }).check();
+    await expect(page.getByRole('region', { name: 'Failure' }).getByRole('group', { name: 'Status' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Failure' })).toBeVisible();
+    expect(await page.locator('relative-time').getAttribute('lang')).toBeNull();
+});
+
+test('keeps workflow names while localizing status options after a filter panel is reused', async ({ browserApp }) => {
+    const { fixture, open, page } = browserApp;
+    fixture.html = `
+        <main>
+            <button onclick="const title = document.querySelector('#filter-title span'); title.firstChild.data = 'Filter by Status'">
+                Show status filter
+            </button>
+            <button onclick="document.querySelector('#filter-title span').textContent = 'Filter by Workflow'">
+                Show workflow filter
+            </button>
+            <div role="dialog" aria-labelledby="filter-title" data-component="SelectPanel">
+                <h1 id="filter-title" data-component="SelectPanel.Title"><span>Filter by Workflow</span></h1>
+                <ul role="listbox"><li role="option">
+                    <span data-component="ActionList.Item.Label">Failure</span>
+                </li></ul>
+            </div>
+        </main>`;
+    const popup = await open('github.com', actions);
+    const toggle = popup.getByRole('switch', { name: 'GitHub 界面汉化' });
+    await toggle.check();
+    await expect(page.getByRole('dialog', { name: '按工作流筛选' }).getByRole('option', { name: 'Failure' })).toBeVisible();
+    await page.getByRole('button', { name: 'Show status filter' }).click();
+    await expect(page.getByRole('dialog', { name: '按状态筛选' }).getByRole('option', { name: '失败' })).toBeVisible();
+    await page.getByRole('button', { name: 'Show workflow filter' }).click();
+    await expect(page.getByRole('dialog', { name: '按工作流筛选' }).getByRole('option', { name: 'Failure' })).toBeVisible();
+    await toggle.uncheck();
+    await expect(page.getByRole('dialog', { name: 'Filter by Workflow' }).getByRole('option', { name: 'Failure' })).toBeVisible();
+});
+
+test('opens a failed job log and confirms both rerun choices in the fixture', async ({ browserApp }) => {
+    const { fixture, open, page } = browserApp;
+    const summary = `
+        <main>
+            <page-header>
+                <button id="reruns" aria-expanded="false" type="button">Re-run jobs</button>
+                <div id="rerun-menu" role="menu" hidden>
+                    <button role="menuitem" data-scope="failed">Re-run failed jobs</button>
+                    <button role="menuitem" data-scope="all">Re-run all jobs</button>
+                </div>
+            </page-header>
+            <react-partial partial-name="actions-run-jobs-list">
+                <div class="jobsHeader__fixture"><h4 class="jobsHeading__fixture">All jobs</h4></div>
+                <a href="${job}" class="WorkflowJob-title">Failure</a>
+            </react-partial>
+            <dialog-helper></dialog-helper>
+            <output></output>
+        </main>
+        <script>
+            const toggle = document.querySelector('#reruns');
+            const menu = document.querySelector('#rerun-menu');
+            toggle.addEventListener('click', () => {
+                menu.hidden = !menu.hidden;
+                toggle.setAttribute('aria-expanded', String(!menu.hidden));
+            });
+            for (const option of menu.querySelectorAll('[role="menuitem"]')) {
+                option.addEventListener('click', () => {
+                    toggle.click();
+                    const scope = option.dataset.scope;
+                    const dialog = document.createElement('dialog');
+                    dialog.className = 'Overlay';
+                    dialog.setAttribute('aria-labelledby', 'rerun-title');
+                    const heading = scope === 'failed' ? 'Re-run failed jobs' : 'Re-run all jobs';
+                    dialog.innerHTML = '<h1 id="rerun-title" class="Overlay-title">' + heading + '</h1>' +
+                        '<div class="Overlay-body"><form method="post">' +
+                        '<p>A new attempt of this workflow will be started, including <strong>' +
+                        (scope === 'failed' ? 'all failed jobs' : 'all the jobs') +
+                        '</strong></p>' +
+                        '<label><input name="enable_debug_logging" type="checkbox">Enable debug logging</label>' +
+                        '<button type="submit">Re-run jobs</button></form></div>';
+                    dialog.querySelector('form').addEventListener('submit', event => {
+                        event.preventDefault();
+                        document.querySelector('output').textContent =
+                            scope + ':' + new FormData(event.currentTarget).has('enable_debug_logging');
+                        dialog.remove();
+                    });
+                    document.querySelector('dialog-helper').append(dialog);
+                    dialog.showModal();
+                });
+            }
+        </script>`;
+    const logs = `
+        <main>
+            <h1><span class="WorkflowJob-title">Failure</span></h1>
+            <div class="js-full-logs-container">
+                <details>
+                    <summary>Failure</summary>
+                    <pre>Process completed with exit code 1</pre>
+                </details>
+            </div>
+        </main>`;
+    fixture.html = ({ url }) => url === job ? logs : summary;
+    const popup = await open('github.com', run);
+    await popup.getByRole('switch', { name: 'GitHub 界面汉化' }).check();
+    for (const { menuLabel, scopeDescription, useDebug, submission } of [
+        { menuLabel: '重新运行失败作业', scopeDescription: '所有失败作业', useDebug: true, submission: 'failed:true' },
+        { menuLabel: '重新运行所有作业', scopeDescription: '所有作业', useDebug: false, submission: 'all:false' },
+    ]) {
+        await page.getByRole('button', { name: '重新运行作业', exact: true }).click();
+        await page.getByRole('menuitem', { name: menuLabel, exact: true }).click();
+        const confirmation = page.getByRole('dialog', { name: menuLabel });
+        await expect(confirmation).toBeVisible();
+        await expect(confirmation.getByText(scopeDescription, { exact: true })).toBeVisible();
+        const debug = confirmation.getByRole('checkbox', { name: '启用调试日志' });
+        await expect(debug).not.toBeChecked();
+        if (useDebug) await debug.check();
+        await confirmation.getByRole('button', { name: '重新运行作业', exact: true }).click();
+        await expect(page.locator('output')).toHaveText(submission);
+    }
+    await expect(page.getByRole('heading', { name: '所有作业' })).toBeVisible();
+    const failedJob = page.getByRole('link', { name: 'Failure', exact: true });
+    await expect(failedJob).toHaveAttribute('href', job);
+    await failedJob.click();
+    await expect(page).toHaveURL(`https://github.com${job}`);
+    const log = page.getByText('Process completed with exit code 1', { exact: true });
+    await expect(log).toBeHidden();
+    await page.getByText('Failure', { exact: true }).and(page.locator('summary')).click();
+    await expect(log).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Failure', exact: true })).toBeVisible();
+});

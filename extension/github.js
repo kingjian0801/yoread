@@ -41,15 +41,21 @@
     const actionsRoute = /^\/[^/]+\/[^/]+\/actions(?:\/workflows\/[^/]+|\/runs\/\d+(?:\/attempts\/\d+)?(?:\/job\/\d+)?)?\/?$/;
     const actionsList = 'react-app [data-listview-component="items-list"]';
     const actionsFilter = 'react-app search[class^="FilterBar__"]';
+    const actionsSelectPanel = '[data-component="SelectPanel"]';
     const actionsFilterTitle = '[data-component="SelectPanel.Title"]';
-    const actionsFilterOption = '[data-component="SelectPanel"] [role="option"] [data-component="ActionList.Item.Label"]';
+    const actionsFilterOption = `${actionsSelectPanel} [role="option"] [data-component="ActionList.Item.Label"]`;
     const actionsAnnotations = '[data-url$="/annotations_partial"]';
+    const actionsJobs = 'react-partial[partial-name="actions-run-jobs-list"]';
+    const actionsRerunDialog = 'dialog.Overlay:has(form[method="post"])';
+    const actionsRerunHeading = '.Overlay-title';
+    const actionsRerunText = `${actionsRerunDialog} ${actionsRerunHeading}, ${actionsRerunDialog} .Overlay-body`;
+    const actionsRerunTitles = new Set(['Re-run jobs', 'Re-run failed jobs', 'Re-run all jobs']);
     const actionsFixed = [
         'react-app [data-component="PH_Title"]', 'react-app [data-component="PageHeader.Description"]',
         'react-app [data-component="Sidebar.Item"]', 'react-app h2[id$="-list-view-container-title"]',
         `${actionsFilter} label`, actionsFilterTitle, actionsFilterOption, `${actionsList} .sr-only`,
         '.actions-workflow-stats > div > div > span', '.actions-workflow-stats .col-triggered-content span',
-        `${actionsAnnotations} h2`,
+        `${actionsAnnotations} h2`, `${actionsJobs} h4[class^="jobsHeading__"]`, actionsRerunText,
     ].join(',');
     const actionsProtected = [
         '[data-listview-item-title-container]', `${actionsList} strong`, '.PageHeader-parentLink',
@@ -267,16 +273,31 @@
         return partial ? partial.classList.contains('loaded') : document.readyState === 'complete';
     }
 
+    function originalText(element) {
+        if (!element) return '';
+        const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
+        let original = '';
+        while (walker.nextNode()) {
+            const node = walker.currentNode;
+            const change = changed.get(node);
+            original += change?.rendered === node.data ? change.original : node.data;
+        }
+        return original.trim().replace(/\s+/g, ' ');
+    }
+
     function isIdentifier(element) {
         if (pageKey === 'repository/actions') {
             if (element.closest(actionsProtected)) return true;
             if (element.closest('[data-component="PH_Title"]') &&
                 route.slice(repoPath.length).startsWith('/actions/workflows/')) return true;
             if (element.closest(actionsFilterOption)) {
-                const title = element.closest('[data-component="SelectPanel"]').querySelector(actionsFilterTitle)?.firstChild;
-                const previous = changed.get(title);
-                const original = previous && previous.rendered === title.data ? previous.original : title?.data;
-                if (original !== 'Filter by Status' && original !== 'Filter by Event') return true;
+                const kind = originalText(element.closest(actionsSelectPanel).querySelector(actionsFilterTitle));
+                if (kind !== 'Filter by Status' && kind !== 'Filter by Event') return true;
+            }
+            if (element.closest(actionsRerunText) && !element.closest(fixed)) {
+                const dialog = element.closest(actionsRerunDialog);
+                const title = originalText(dialog.querySelector(actionsRerunHeading));
+                if (!actionsRerunTitles.has(title)) return true;
             }
             const actionLink = element.closest('a[href]');
             if (actionLink?.origin === location.origin && actionLink.pathname.toLowerCase().startsWith(repoPath + '/actions/')) {
@@ -390,14 +411,20 @@
         const inRepositoryNav = element.closest(repositoryNav);
         const reviewTooltip = pageKey === 'repository/pull' &&
             element.matches(reviewThreadLabel);
+        const rerunText = actionPage && element.closest(actionsRerunText);
         const exactOnly = pageKey === 'repository/releases' || (separateCountLabel && !commitCount.test(source)) ||
-            (actionPage && element.closest(actionsFilterOption));
-        const value = actionPage && element.matches('.sr-only') && element.closest(actionsList)
-            ? translateActionStatus(source)
-            : (pageKey === 'issues' ? dashboardText(element, source) : null) ??
+            (actionPage && element.closest(actionsFilterOption)) || rerunText;
+        let value;
+        if (actionPage && element.matches('.sr-only') && element.closest(actionsList)) {
+            value = translateActionStatus(source);
+        } else if (rerunText && source === 'Enable debug logging') {
+            value = '启用调试日志';
+        } else {
+            value = (pageKey === 'issues' ? dashboardText(element, source) : null) ??
                 (milestonePage ? milestoneText(element, source) : null) ??
                 (reviewTooltip ? collaborationLabels.get(source) : null) ??
                 lookup(source, Boolean(exactOnly), !inRepositoryNav);
+        }
         const rendered = value && value !== source ? original.replace(trimmed, () => value) : original;
         if (rendered !== original) changed.set(node, { original, rendered });
         if (node.data !== rendered) node.data = rendered;
@@ -430,6 +457,7 @@
         if (dashboardLabelControl(element)) {
             return !element.closest(protectedContent) && (!ignore || !element.closest(ignore));
         }
+        if (pageKey === 'repository/actions' && element.closest(actionsProtected)) return false;
         if (pageKey === 'repository/actions' && element.matches(actionsLabels) &&
             !element.closest(protectedContent) && (!ignore || !element.closest(ignore))) return true;
         if (isReleaseControl(element, releaseLabels)) return true;
@@ -510,6 +538,7 @@
 
     function ownsTime(element) {
         if (!page || !element.matches(relativeTime) || element.closest(protectedContexts) ||
+            (pageKey === 'repository/actions' && element.closest(actionsProtected)) ||
             (ignore && element.closest(ignore)) || !Number.isFinite(Date.parse(element.getAttribute('datetime')))) {
             return false;
         }
@@ -610,8 +639,10 @@
     const observer = new MutationObserver(records => {
         if (showingOriginal && route === location.pathname) return;
         for (const record of records) {
+            const filterPanel = pageKey === 'repository/actions' &&
+                (record.type === 'characterData' ? record.target.parentElement : record.target)?.closest?.(actionsSelectPanel);
             if (record.type === 'characterData') {
-                if (changed.get(record.target)?.rendered !== record.target.data) schedule(record.target);
+                if (changed.get(record.target)?.rendered !== record.target.data) schedule(filterPanel || record.target);
             } else if (record.type === 'attributes') {
                 if (record.attributeName === 'class' && (record.target.matches(reactHeader) || (page && pageKey !== 'repository'))) {
                     schedule(record.target);
@@ -630,6 +661,8 @@
                 } else if (contextAttributes.includes(record.attributeName)) {
                     schedule(record.target);
                 }
+            } else if (filterPanel) {
+                schedule(filterPanel);
             } else {
                 if (record.removedNodes.length && record.target.closest?.(commitHistoryControl)) {
                     // The surviving count can become eligible when its label loses a sibling.
