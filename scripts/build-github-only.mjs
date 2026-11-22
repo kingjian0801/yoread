@@ -13,13 +13,14 @@ const root = fileURLToPath(new URL('..', import.meta.url));
 const source = join(root, 'extension');
 const target = output ? resolve(output) : join(root, 'dist', browser);
 const terminology = terminologyScript();
-const { name, version, action, optional_host_permissions } =
+const { name, version, icons, action, optional_host_permissions } =
     JSON.parse(await readFile(join(source, 'manifest.json'), 'utf8'));
 const manifest = {
     manifest_version: 3,
     name,
     version,
     description: '用本地词库将 GitHub 界面显示为简体中文。',
+    icons,
     action,
     optional_host_permissions,
     permissions: ['scripting', 'storage'],
@@ -40,6 +41,7 @@ if (!output) await rm(target, { recursive: true, force: true });
 await mkdir(target);
 try {
     await cp(join(root, 'packages', 'github-only'), target, { recursive: true });
+    await cp(join(source, 'icons'), join(target, 'icons'), { recursive: true });
     await cp(join(source, 'vendor'), join(target, 'vendor'), { recursive: true });
     for (const file of ['github.js', 'github-settings.js']) {
         await cp(join(source, file), join(target, file));

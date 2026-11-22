@@ -66,7 +66,13 @@ test('archives four browser candidates and matching source from the tagged commi
             ? 'Yoread.app/Contents/PlugIns/Yoread Extension.appex/Contents/Resources/'
             : '';
         const extract = file => command('unzip', ['-p', path, resources + file]);
-        assert.equal(JSON.parse(extract('manifest.json')).version, version);
+        const manifest = JSON.parse(extract('manifest.json'));
+        assert.equal(manifest.version, version);
+        assert.ok(manifest.icons?.[128]);
+        const storeIcon = execFileSync('unzip', ['-p', path, resources + manifest.icons[128]]);
+        assert.deepEqual(storeIcon.subarray(0, 8), Buffer.from('89504e470d0a1a0a', 'hex'));
+        assert.equal(storeIcon.readUInt32BE(16), 128);
+        assert.equal(storeIcon.readUInt32BE(20), 128);
         assert.match(extract('LICENSE'), /GNU GENERAL PUBLIC LICENSE/);
         assert.equal(entry.purpose, entry.browser === 'safari' ? 'local-verification' : 'store-submission');
         assert.equal(entry.signing, entry.browser === 'safari' ? 'ad-hoc' : 'unsigned');

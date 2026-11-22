@@ -9,6 +9,7 @@ const licenses = ['LICENSE', 'LICENSE-MIT-ORIGINAL', 'vendor/github/NOTICE.md'];
 const extensionFiles = [
     'manifest.json', 'background.js', 'github-settings.js', 'github-terms.js', 'github.js',
     'popup.css', 'popup.html', 'popup.js', 'vendor/github/locals.js', ...licenses,
+    'icons/yoread-16.png', 'icons/yoread-32.png', 'icons/yoread-48.png', 'icons/yoread-128.png',
 ];
 const chromeFiles = [...extensionFiles, 'page.js', 'provider.js', 'translation-rules.js'];
 const channels = {
