@@ -13,6 +13,19 @@
     const commitHistoryControl = 'a[data-component="LinkButton"][href*="/commits/"]';
     const commitHistoryLabel = ':scope > [data-component="text"], :scope > [data-component="buttonContent"] > [data-component="text"]';
     const commitCount = /^(?:\d+|\d{1,3}(?:,\d{3})+) [Cc]ommits?$/;
+    const releaseSidebar = 'nav[data-component="Sidebar.Main"][aria-label="Releases and tags"]';
+    const releaseFilter = 'input#release-filter[type="search"]';
+    const releaseLabels = `${releaseFilter}, button[data-component="Sidebar.CollapseButton"], select-panel [role="listbox"]`;
+    const releaseControls = [
+        'header[data-component="PageLayout.Header"] h1[data-component="PH_Title"]',
+        `${releaseSidebar} h2`, `${releaseSidebar} a:not([href^="#"])`,
+        'nav[aria-label="Breadcrumb"] .breadcrumb-item > a',
+        '.pagination[aria-label="Pagination"] :is(.previous_page, .next_page)',
+        '[data-release-anchor] .Label', '.Box-body .Label--large',
+        'details-toggle a.wb-break-all[href*="/archive/refs/tags/"] > .text-bold',
+        'select-panel .Overlay-title', 'select-panel label[for]',
+        'select-panel [data-target="select-panel.noResults"] h2', 'select-panel a[href$="/tags"]',
+    ].join(',');
     const relativeTime = 'relative-time[datetime]';
     const localizedLanguage = 'zh-CN';
     const contextAttributes = ['hidden', 'inert', 'aria-hidden', 'translate', 'href'];
@@ -130,6 +143,7 @@
     const protectedContent = `${protectedContexts},relative-time`;
     const changed = new Map();
     const changedLabels = new Map();
+    const changedPlaceholders = new Map();
     const changedTimes = new Map();
     const queued = new Set();
     const cache = new Map();
@@ -155,16 +169,20 @@
         restore();
         cache.clear();
         route = location.pathname;
-        const [owner, repo, section] = route.split('/').filter(Boolean);
+        const [owner, repo, section, subpage, slug] = route.split('/').filter(Boolean);
         const kind = route.match(upstream.conf.rePagePathRepo)?.[1];
+        const releasePage = section === 'releases' &&
+            (!subpage || subpage === 'latest' || (subpage === 'tag' && slug));
         const actions = kind === 'actions' && actionsRoute.test(route);
-        const supported = !section || actions || (section === kind && ['issues', 'pull', 'pulls', 'compare'].includes(kind));
+        const supported = !section || actions || releasePage || (section === kind && ['issues', 'pull', 'pulls', 'compare'].includes(kind));
         const reserved = owner && ('/' + owner.toLowerCase() + '/').match(upstream.conf.rePagePath)?.[1] === owner.toLowerCase();
         pageKey = kind ? `repository/${kind}` : 'repository';
         page = owner && repo && !reserved && supported ? dictionary[pageKey] : null;
         const collaboration = collaborationPages.includes(pageKey);
-        fixedOnPage = [fixed, actions && actionsFixed, collaboration && collaborationControls].filter(Boolean).join(',');
-        labelsOnPage = [headerLabelControls, actions && actionsLabels, collaboration && collaborationAria].filter(Boolean).join(',');
+        fixedOnPage = [fixed, actions && actionsFixed, collaboration && collaborationControls,
+            releasePage && releaseControls].filter(Boolean).join(',');
+        labelsOnPage = [headerLabelControls, actions && actionsLabels, collaboration && collaborationAria,
+            releasePage && releaseLabels].filter(Boolean).join(',');
         repoPath = page ? `/${owner}/${repo}`.toLowerCase() : '';
         // The upstream feature varies these exclusions by page and combines its global entries.
         const skip = upstream.conf.ignoreSelectorPage;
@@ -178,6 +196,8 @@
         changed.clear();
         for (const [element, change] of changedLabels) restoreAttribute(element, 'aria-label', change);
         changedLabels.clear();
+        for (const [element, change] of changedPlaceholders) restoreAttribute(element, 'placeholder', change);
+        changedPlaceholders.clear();
         for (const [element, change] of changedTimes) restoreAttribute(element, 'lang', change);
         changedTimes.clear();
     }
@@ -225,7 +245,7 @@
                 (path.split('/').at(-1) === 'code' &&
                     (link.origin !== location.origin || link.dataset.tabItem !== 'code'));
         }
-        return /^\/(?:tree|commit|blob|releases\/tag|compare)\//.test(path.slice(repoPath.length));
+        return /^\/(?:tree|commit|blob|releases\/(?:tag|download)|compare)\//.test(path.slice(repoPath.length));
     }
 
     function owns(node) {
@@ -303,7 +323,7 @@
         const inRepositoryNav = element.closest(repositoryNav);
         const reviewTooltip = pageKey === 'repository/pull' &&
             element.matches('review-thread-collapsible tool-tip[for][data-type="label"]');
-        const exactOnly = (separateCountLabel && !commitCount.test(source)) ||
+        const exactOnly = pageKey === 'repository/releases' || (separateCountLabel && !commitCount.test(source)) ||
             (actionPage && element.closest(actionsFilterOption));
         const value = actionPage && element.matches('.sr-only') && element.closest(actionsList)
             ? translateActionStatus(source)
@@ -318,6 +338,7 @@
         if (!page) return false;
         if (pageKey === 'repository/actions' && element.matches(actionsLabels) &&
             !element.closest(protectedContent) && (!ignore || !element.closest(ignore))) return true;
+        if (isReleaseControl(element, releaseLabels)) return true;
         const header = element.closest(globalHeader);
         if (header) {
             return headerReady(header) && element.matches(headerLabelControls) &&
@@ -358,12 +379,31 @@
         } else if (pageKey === 'repository/actions' && element.matches(actionsLabels)) {
             if (element.matches('li')) rendered = translateActionStatus(original);
             else rendered = Object.hasOwn(actionsLabelTerms, original) ? actionsLabelTerms[original] : lookup(original, true);
+        } else if (isReleaseControl(element, releaseLabels)) {
+            rendered = lookup(original, true);
         } else if (collaborationLabels.has(original)) {
             rendered = collaborationLabels.get(original) ?? lookup(original, true);
         }
         if (rendered && rendered !== original) changedLabels.set(element, { original, rendered });
         const value = rendered ?? original;
         if (current !== value) element.setAttribute('aria-label', value);
+    }
+
+    function isReleaseControl(element, selector) {
+        return page && pageKey === 'repository/releases' && element.matches(selector) &&
+            !element.parentElement?.closest(protectedContexts) &&
+            !element.matches('[hidden], [inert], [aria-hidden="true"], [translate="no"]');
+    }
+
+    function localizeReleaseFilter(element) {
+        const original = element.getAttribute('placeholder');
+        if (changedPlaceholders.get(element)?.rendered === original) return;
+        changedPlaceholders.delete(element);
+        if (!original) return;
+        const rendered = lookup(original, true);
+        if (typeof rendered !== 'string' || rendered === original) return;
+        changedPlaceholders.set(element, { original, rendered });
+        element.setAttribute('placeholder', rendered);
     }
 
     function ownsTime(element) {
@@ -392,6 +432,10 @@
         for (const time of root.querySelectorAll(relativeTime)) localizeTime(time);
         if (root.matches(labelsOnPage)) translateLabel(root, refreshTerms);
         for (const element of root.querySelectorAll(labelsOnPage)) translateLabel(element, refreshTerms);
+        if (isReleaseControl(root, releaseFilter)) localizeReleaseFilter(root);
+        for (const element of root.querySelectorAll(releaseFilter)) {
+            if (isReleaseControl(element, releaseFilter)) localizeReleaseFilter(element);
+        }
         const scopes = root.closest(fixedOnPage) ? [root] : [...root.querySelectorAll(fixedOnPage)]
             .filter(scope => !scope.parentElement?.closest(fixedOnPage));
         for (const scope of scopes) {
@@ -436,6 +480,11 @@
             restoreAttribute(element, 'aria-label', change);
             changedLabels.delete(element);
         }
+        for (const [element, change] of changedPlaceholders) {
+            if (element.isConnected && isReleaseControl(element, releaseFilter)) continue;
+            restoreAttribute(element, 'placeholder', change);
+            changedPlaceholders.delete(element);
+        }
         for (const [element, change] of changedTimes) {
             if (element.isConnected && ownsTime(element)) continue;
             restoreAttribute(element, 'lang', change);
@@ -468,6 +517,9 @@
                     (changedLabels.has(record.target) ||
                         record.target.matches(labelsOnPage)) &&
                     changedLabels.get(record.target)?.rendered !== record.target.getAttribute('aria-label')) {
+                    schedule(record.target);
+                } else if (record.attributeName === 'placeholder' && isReleaseControl(record.target, releaseFilter) &&
+                    changedPlaceholders.get(record.target)?.rendered !== record.target.getAttribute('placeholder')) {
                     schedule(record.target);
                 } else if (record.target.matches('relative-time') && (record.attributeName === 'datetime' ||
                     (record.attributeName === 'lang' &&
@@ -544,7 +596,7 @@
         globalThis.yoreadPage?.release?.(excludes);
         observer.observe(document.documentElement, {
             subtree: true, childList: true, characterData: true,
-            attributeFilter: ['class', 'aria-label', 'datetime', 'lang', ...contextAttributes],
+            attributeFilter: ['class', 'aria-label', 'placeholder', 'datetime', 'lang', ...contextAttributes],
         });
         if (document.readyState !== 'complete') addEventListener('load', onHeaderReady, { once: true });
         globalThis.navigation?.addEventListener('currententrychange', onNavigation);

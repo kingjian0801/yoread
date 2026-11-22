@@ -26,6 +26,24 @@
             "translations": { "zh-CN": { "beginner": "新建拉取请求（PR）", "professional": "新建 PR" } }
         },
         {
+            "english": "Filter",
+            "scope": "repository/releases",
+            "example": "比较发行版标签时，用筛选框缩小标签列表。",
+            "translations": { "zh-CN": { "beginner": "筛选", "professional": "筛选" } }
+        },
+        {
+            "english": "No results found",
+            "scope": "repository/releases",
+            "example": "发行版的标签比较菜单没有找到匹配项。",
+            "translations": { "zh-CN": { "beginner": "未找到结果", "professional": "未找到结果" } }
+        },
+        {
+            "english": "Source code",
+            "scope": "repository/releases",
+            "example": "发行版的资源区使用 Source code 标记 GitHub 生成的源码归档。",
+            "translations": { "zh-CN": { "beginner": "源代码", "professional": "源代码" } }
+        },
+        {
             "english": "Fork",
             "scope": "common",
             "example": "无法直接向上游推送时，使用 Fork 创建可写副本。",
