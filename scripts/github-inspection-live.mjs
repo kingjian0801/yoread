@@ -14,11 +14,13 @@ const control = (location, source, attribute) => ({ location, source, ...(attrib
 const codeDownloadLabel = '[aria-label="Repository actions"] a[href^="/cli/cli/archive/refs/heads/"][href$=".zip"] [data-component="ActionList.Item.Label"]';
 const gitRefTabs = '[role="tablist"][aria-label="Ref type"] [role="tab"]';
 const failedActionsPath = '/cli/cli/actions?query=is%3Afailure';
-const closedMilestonesPath = '/nodejs/node/milestones?state=closed';
+const milestonesPath = '/nodejs/node/milestones';
+const closedMilestonesQuery = '?state=closed';
 const runStatus = '.actions-workflow-stats > div > .col:nth-child(3)';
 const publicSamples = [
     {
         pageType: 'repository', path: '/cli/cli',
+        waitForLoad: true,
         controls: [
             control('nav a[data-tab-item="code"]', 'Code'),
             control('button[data-analytics-event*="searchbar_input_global_navbar"], button[data-target="qbsearch-input.inputButton"]',
@@ -28,13 +30,11 @@ const publicSamples = [
     {
         pageType: 'repository', path: '/cli/cli',
         open: 'main button[aria-expanded][data-component="Button"]:has(svg.octicon-code)',
-        exactSource: true,
         controls: [control(codeDownloadLabel, 'Download ZIP')],
     },
     {
         pageType: 'repository', path: '/cli/cli',
         open: '#ref-picker-repos-header-ref-selector',
-        exactSource: true,
         controls: [
             control(`${gitRefTabs}[id$="-tab-branch"]`, 'Branches'),
             control(`${gitRefTabs}[id$="-tab-tag"]`, 'Tags'),
@@ -64,10 +64,9 @@ const publicSamples = [
             location: '[data-listview-item-title-container] a[href*="/actions/runs/"]',
             pathname: /^\/cli\/cli\/actions\/runs\/\d+\/?$/,
         },
-        exactSource: true,
         controls: [
-            control(`${runStatus} > span:first-child`, 'Status'),
-            control(`${runStatus} > span.h4`, 'Failure'),
+            { ...control(`${runStatus} > span:first-child`, 'Status'), fixedSource: true },
+            { ...control(`${runStatus} > span.h4`, 'Failure'), fixedSource: true },
             control('.actions-workflow-stats > div > .col:has(> a.h4[href]) > span:first-child', 'Total duration'),
         ],
     },
@@ -80,21 +79,24 @@ const publicSamples = [
         ],
     },
     {
-        pageType: 'repository/milestones', path: '/nodejs/node/milestones',
+        pageType: 'repository/milestones', path: milestonesPath,
         controls: [control('[data-testid="closed-milestone-tab"] > div', 'Closed')],
     },
     {
-        pageType: 'repository/milestones', path: closedMilestonesPath,
-        exactSource: true,
+        pageType: 'repository/milestones', path: milestonesPath,
+        follow: {
+            location: '[data-testid="closed-milestone-tab"][href]',
+            pathname: /^\/nodejs\/node\/milestones$/,
+            search: closedMilestonesQuery,
+        },
         controls: [control('[data-testid="closed-milestone-tab"][aria-current="true"] > div', 'Closed')],
     },
     {
-        pageType: 'repository/milestone', path: closedMilestonesPath,
+        pageType: 'repository/milestone', path: milestonesPath + closedMilestonesQuery,
         follow: {
             location: 'main a[href*="/nodejs/node/milestone/"]',
             pathname: /^\/nodejs\/node\/milestone\/\d+\/?$/,
         },
-        exactSource: true,
         controls: [control('[data-testid="milestone-status"] [data-component="StateLabel"]', 'Closed')],
     },
     {
@@ -108,7 +110,8 @@ async function readControls(page, controls) {
         page.locator(location).first().waitFor({ state: 'attached', timeout }).catch(() => {})));
     return page.evaluate(({ controls, protectedContent }) => controls.map(({ location, attribute }) => {
         const target = document.querySelector(location);
-        if (!target || target.closest(protectedContent) ||
+        if (!target?.checkVisibility({ visibilityProperty: true }) || target.closest(protectedContent) ||
+            (attribute && target.closest('[aria-hidden="true"], [inert]')) ||
             (!attribute && target.querySelector(protectedContent))) return '';
         const value = attribute ? target.getAttribute(attribute) : target.innerText;
         return (value ?? '').trim().replace(/\s+/g, ' ').slice(0, 260);
@@ -125,20 +128,34 @@ async function navigate(page, url) {
     }
 }
 
-function approvedDetail(url, pathname) {
+function approvedDetail(url, { pathname, search = '' }) {
     return url.origin === github && !url.username && !url.password &&
-        !url.search && !url.hash && pathname.test(url.pathname);
+        url.search === search && !url.hash && pathname.test(url.pathname);
 }
 
-async function publicDetail(page, { location, pathname }) {
-    const links = page.locator(location);
+async function publicDetail(page, follow) {
+    const links = page.locator(follow.location);
     await links.first().waitFor({ state: 'attached', timeout }).catch(() => {});
     const addresses = await links.evaluateAll((elements, protectedContent) => elements
-        .filter(link => !link.closest(protectedContent))
+        .filter(link => link.checkVisibility({ visibilityProperty: true }) && !link.closest(protectedContent))
         .map(link => link.getAttribute('href')), protectedContent);
     return addresses.filter(href => href && URL.canParse(href, page.url()))
         .map(href => new URL(href, page.url()))
-        .find(url => approvedDetail(url, pathname));
+        .find(url => approvedDetail(url, follow));
+}
+
+export async function routePublicGithub(route) {
+    const request = route.request();
+    const address = new URL(request.url());
+    if (!['GET', 'HEAD'].includes(request.method()) ||
+        ![github, 'https://github.githubassets.com'].includes(address.origin)) return route.abort();
+    if (request.isNavigationRequest() &&
+        publicSamples.some(({ follow }) => follow && approvedDetail(address, follow))) {
+        const response = await route.fetch({ maxRedirects: 0, timeout: 12_000 }).catch(() => null);
+        if (!response || (response.status() >= 300 && response.status() < 400)) return route.abort();
+        return route.fulfill({ response });
+    }
+    return route.continue();
 }
 
 async function openControl(page, location) {
@@ -155,9 +172,11 @@ async function openControl(page, location) {
 
 export async function collectGithubSamples(page, setLocalization, samples = publicSamples) {
     const results = [];
-    for (const { pageType, url, controls, open, follow, exactSource } of samples) {
+    for (const { pageType, url, controls, open, follow, waitForLoad } of samples) {
         const result = { pageType, url };
-        let error = await navigate(page, url);
+        const previous = results.at(-1);
+        const reuseIndex = follow && previous?.url === url && !previous.error && page.url() === url;
+        let error = reuseIndex ? undefined : await navigate(page, url);
         if (!error && follow) {
             const detail = await publicDetail(page, follow);
             if (detail) {
@@ -172,6 +191,7 @@ export async function collectGithubSamples(page, setLocalization, samples = publ
             results.push({ ...result, error });
             continue;
         }
+        if (waitForLoad) await page.waitForLoadState('load', { timeout }).catch(() => {});
         if (open) await openControl(page, open);
         const baseline = await readControls(page, controls);
         await setLocalization(true);
@@ -179,10 +199,10 @@ export async function collectGithubSamples(page, setLocalization, samples = publ
             if (open) await openControl(page, open);
             const rendered = await readControls(page, controls);
             results.push({
-                ...result, controls: controls.map((item, index) => ({
+                ...result, controls: controls.map(({ fixedSource, ...item }, index) => ({
                     ...item,
-                    source: exactSource ? item.source : baseline[index] || item.source,
-                    rendered: exactSource && baseline[index] !== item.source ? '' : rendered[index],
+                    source: fixedSource ? item.source : baseline[index] || item.source,
+                    rendered: fixedSource && baseline[index] !== item.source ? '' : rendered[index],
                 })),
             });
         } finally {
@@ -207,12 +227,7 @@ async function inspectLive(mode) {
             channel: 'chromium',
             args: [`--disable-extensions-except=${extension}`, `--load-extension=${extension}`, '--disable-background-networking'],
         });
-        await context.route(/^https?:\/\//, route => {
-            const address = new URL(route.request().url());
-            const readOnly = ['GET', 'HEAD'].includes(route.request().method());
-            return readOnly && [github, 'https://github.githubassets.com'].includes(address.origin)
-                ? route.continue() : route.abort();
-        });
+        await context.route(/^https?:\/\//, routePublicGithub);
         const [worker = await context.waitForEvent('serviceworker', { timeout })] = context.serviceWorkers();
         const page = context.pages()[0];
         const popup = await context.newPage();
