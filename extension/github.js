@@ -145,6 +145,24 @@
         ['Filter issues by state', '按状态筛选议题'], ['List view', '列表视图'],
         ['New milestone', '新建里程碑'],
     ]);
+    const builtInIssuesView = /^\/issues(?:\/(?:created|assigned|mentioned|recent))?\/?$/;
+    const savedIssuesView = /^\/issues\/views?(?:\/[\w-]+)?\/?$/;
+    const dashboardPageTitle = 'main h1, [data-component="PageHeader.Description"]';
+    const dashboardResults = '[data-listview-component="header"], h2[id$="-list-view-container-title"]';
+    const dashboardResultCount = /^(\d+|\d{1,3}(?:,\d{3})+) results?$/;
+    const dashboardDialog = ':is(dialog, [role="dialog"])';
+    const dashboardFixed = [
+        ':is(main nav, aside nav) a[href]', ':is(main nav, aside nav) h2', dashboardPageTitle,
+        'main [role="search"] label', 'main search label', dashboardResults,
+        `${dashboardDialog} [data-component="Dialog.Title"]`, `${dashboardDialog} label`,
+        'main [data-component="Blankslate.Heading"]', 'main [data-component="Blankslate.Description"]',
+    ].join(',');
+    const dashboardProtected = [
+        '[data-listview-item-title-container]', '[data-component="CounterLabel"]',
+        '[data-component="IssueLabel"]', '[class*="IssueLabel"]',
+    ].join(',');
+    const dashboardLabelControls = 'button[aria-label], [role="button"][aria-label], [role="search"][aria-label], search[aria-label]';
+    const dashboardLabels = new Set(['New view', 'Create a view', 'Create view', 'View options', 'Saved views menu', 'Search Issues', 'Filters', 'Sort']);
     const userContent = [
         'article', '.markdown-body', '.js-comment-body', '.comment-body',
         '.js-issue-title', '.markdown-title', '[data-testid="issue-title"]',
@@ -206,16 +224,18 @@
         milestonePage = milestoneList || (section === 'milestone' && /^\d+$/.test(subpage) && !slug);
         const supported = !section || actions || releasePage || milestonePage || (section === kind && ['issues', 'pull', 'pulls', 'compare'].includes(kind));
         const reserved = owner && ('/' + owner.toLowerCase() + '/').match(upstream.conf.rePagePath)?.[1] === owner.toLowerCase();
-        pageKey = kind ? `repository/${kind}` : 'repository';
-        page = owner && repo && !reserved && supported ? dictionary[pageKey] : null;
+        const dashboard = builtInIssuesView.test(route) || savedIssuesView.test(route);
+        pageKey = dashboard ? 'issues' : (kind ? `repository/${kind}` : 'repository');
+        const repositoryPage = owner && repo && !reserved && supported;
+        page = dashboard || repositoryPage ? dictionary[pageKey] : null;
+        repoPath = repositoryPage ? `/${owner}/${repo}`.toLowerCase() : '';
         const collaboration = collaborationPages.includes(pageKey);
         fixedOnPage = [fixed, actions && actionsFixed, collaboration && collaborationControls,
-            releasePage && releaseControls, milestonePage && milestoneControls,
+            releasePage && releaseControls, milestonePage && milestoneControls, dashboard && dashboardFixed,
             milestoneList && 'main h1[data-component="PH_Title"], main a[data-component="Button"][href$="/milestones/new"]',
         ].filter(Boolean).join(',');
         labelsOnPage = [headerLabelControls, actions && actionsLabels, collaboration && collaborationAria,
-            releasePage && releaseLabels, milestonePage && milestoneLabels].filter(Boolean).join(',');
-        repoPath = page ? `/${owner}/${repo}`.toLowerCase() : '';
+            releasePage && releaseLabels, milestonePage && milestoneLabels, dashboard && dashboardLabelControls].filter(Boolean).join(',');
         // The upstream feature varies these exclusions by page and combines its global entries.
         const skip = upstream.conf.ignoreSelectorPage;
         ignore = [...(skip['*'] || []), ...(skip[pageKey] || [])].join(',');
@@ -264,6 +284,11 @@
             }
         }
         const link = element.closest('a[href]');
+        if (pageKey === 'issues') {
+            return Boolean(element.closest(dashboardProtected) ||
+                (savedIssuesView.test(route) && element.closest(dashboardPageTitle) && !element.closest(dashboardDialog)) ||
+                (link && (link.origin !== location.origin || !builtInIssuesView.test(link.pathname))));
+        }
         if (!link) return false;
         const path = link.pathname.toLowerCase().replace(/\/+$/, '');
         if (pageKey === 'repository/issues' && path === '/login' && link.origin === location.origin &&
@@ -312,12 +337,13 @@
         const element = node.parentElement;
         return Boolean(page && element && (element.closest(identifiers) || element.closest('relative-time') ||
             (collaborationPages.includes(pageKey) && element.closest(collaborationProtected)) ||
-            (pageKey === 'repository/actions' && isIdentifier(element)) ||
+            ((pageKey === 'repository/actions' || pageKey === 'issues') && isIdentifier(element)) ||
             (element.closest(fixedOnPage) && !element.closest(userContent))));
     }
 
     function lookup(source, exactOnly = false, useScopedTerms = true) {
         const scopedTerms = useScopedTerms && globalThis.yoreadGitHubPageTerms?.[pageKey];
+        if (pageKey === 'issues' && (source === 'New view' || source === 'Create a view')) return '新建视图';
         for (const entries of [scopedTerms, terms]) {
             if (!entries || !Object.hasOwn(entries, source)) continue;
             const override = entries[source][mode];
@@ -365,7 +391,8 @@
             (actionPage && element.closest(actionsFilterOption));
         const value = actionPage && element.matches('.sr-only') && element.closest(actionsList)
             ? translateActionStatus(source)
-            : (milestonePage ? milestoneText(element, source) : null) ??
+            : (pageKey === 'issues' ? dashboardText(element, source) : null) ??
+                (milestonePage ? milestoneText(element, source) : null) ??
                 (reviewTooltip ? collaborationLabels.get(source) : null) ??
                 lookup(source, Boolean(exactOnly), !inRepositoryNav);
         const rendered = value && value !== source ? original.replace(trimmed, () => value) : original;
@@ -382,8 +409,24 @@
         return milestoneWording.get(source);
     }
 
+    function dashboardLabelControl(element) {
+        return pageKey === 'issues' && element.matches(dashboardLabelControls) &&
+            !element.closest(globalHeader) && !isIdentifier(element);
+    }
+
+    function dashboardText(element, source) {
+        if (element.closest(dashboardResults) && dashboardResultCount.test(source)) {
+            return source.replace(dashboardResultCount, '$1 个结果');
+        }
+        if (source === 'Duplicate' && element.closest('[role="menu"] [role="menuitem"]')) return '复制';
+        return null;
+    }
+
     function ownsLabel(element) {
         if (!page) return false;
+        if (dashboardLabelControl(element)) {
+            return !element.closest(protectedContent) && (!ignore || !element.closest(ignore));
+        }
         if (pageKey === 'repository/actions' && element.matches(actionsLabels) &&
             !element.closest(protectedContent) && (!ignore || !element.closest(ignore))) return true;
         if (isReleaseControl(element, releaseLabels)) return true;
@@ -435,6 +478,8 @@
             rendered = lookup(original, true);
         } else if (milestonePage && element.matches(milestoneLabels)) {
             rendered = milestoneWording.get(original);
+        } else if (dashboardLabelControl(element)) {
+            rendered = dashboardLabels.has(original) ? lookup(original, true) : null;
         } else if (collaborationLabels.has(original)) {
             rendered = collaborationLabels.get(original) ?? lookup(original, true);
         }
