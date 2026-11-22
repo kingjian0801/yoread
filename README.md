@@ -12,6 +12,8 @@ Yoread 是桌面 Chrome 网页翻译扩展。使用自己的 DeepSeek API Key �
 
 Edge、Firefox 和 Safari 的离线汉化试用包见[候选包构建与安装](docs/github-extension-candidates.md)。维护者可按[巡检报告说明](docs/github-inspection.md)运行固定样本。
 
+权限、正文发送和本机数据说明见[Yoread 隐私说明](docs/privacy.md)。 [问题反馈](https://github.com/kingjian0801/yoread/issues/new)
+
 在[术语维护说明](docs/github-terminology.md)可以查询两档译法、页面例外及高风险译文的核对依据。
 
 首版验收采用 [正式 PRD](docs/yoread-mvp-prd.md) 的测试场景。Kim 和 Coco 分别用自己的 Key 在新闻、技术文档、博客、允许发送的非敏感登录页面及 GitHub 上试用。记录候选提交、扩展版本、样本、通过情况和问题。

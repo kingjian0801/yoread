@@ -4,9 +4,19 @@
   "version": "0.1.4",
   "description": "在当前网页阅读简体中文译文，并可独立开启 GitHub 界面汉化。",
   "minimum_chrome_version": "120",
+  "icons": {
+    "16": "icons/yoread-16.png",
+    "32": "icons/yoread-32.png",
+    "48": "icons/yoread-48.png",
+    "128": "icons/yoread-128.png"
+  },
   "action": {
     "default_title": "Yoread",
-    "default_popup": "popup.html"
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/yoread-16.png",
+      "32": "icons/yoread-32.png"
+    }
   },
   "background": {
     "service_worker": "background.js",

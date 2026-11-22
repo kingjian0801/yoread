@@ -1,0 +1,47 @@
+name: GitHub live localization inspection
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  inspect:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    container:
+      # Keep the image in sync with @playwright/test.
+      image: mcr.microsoft.com/playwright:v1.65.1-noble@sha256:1507cbfc550a63a6b7396791ca4f00df17beb56342d2447b3f106c306f525579
+      options: --ipc=host
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '24'
+          cache: npm
+      - run: |
+          npm ci
+          npm run build
+          report=$(mktemp)
+          trap 'rm -f "$report"' EXIT
+          result=0
+          node scripts/github-inspection-live.mjs > "$report" || result=$?
+          if [[ "$result" == 0 || "$result" == 1 ]]; then
+            mv "$report" dist/github-live-inspection.json
+          fi
+          case "$result" in
+            0) echo 'Inspection completed without findings.' >> "$GITHUB_STEP_SUMMARY" ;;
+            1) echo 'Inspection completed with findings or access failures. The anonymous run may report the sign-in-only Issues dashboard as unavailable.' >> "$GITHUB_STEP_SUMMARY" ;;
+            *) echo 'Inspection could not produce a report. See the step log for the error.' >> "$GITHUB_STEP_SUMMARY" ;;
+          esac
+          exit "$result"
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        if: always()
+        with:
+          name: github-live-inspection
+          path: dist/github-live-inspection.json
+          if-no-files-found: ignore

@@ -12,6 +12,22 @@ const run = promisify(execFile);
 const root = fileURLToPath(new URL('../..', import.meta.url));
 const source = JSON.parse(await readFile(join(root, 'extension/manifest.json'), 'utf8'));
 
+async function checkIcons(directory, manifest) {
+    for (const size of [16, 32, 48, 128]) {
+        assert.ok(manifest.icons?.[size], `Missing ${size}px icon from the extension manifest`);
+        const icon = await readFile(join(directory, manifest.icons[size]));
+        assert.deepEqual(icon.subarray(0, 8), Buffer.from('89504e470d0a1a0a', 'hex'));
+        assert.equal(icon.toString('ascii', 12, 16), 'IHDR');
+        assert.equal(icon.readUInt32BE(16), size);
+        assert.equal(icon.readUInt32BE(20), size);
+        assert.equal(icon[25], 6, 'PNG icon has an alpha channel');
+    }
+}
+
+test('Chrome manifest includes store and browser PNG icons at the declared sizes', async () => {
+    await checkIcons(join(root, 'extension'), source);
+});
+
 for (const browser of ['edge', 'firefox', 'safari']) {
     test(`${browser} candidate ships the local GitHub interface and GitHub-only host access`, async t => {
         const temp = await mkdtemp(join(tmpdir(), 'yoread-package-test-'));
@@ -21,6 +37,7 @@ for (const browser of ['edge', 'firefox', 'safari']) {
         const manifest = JSON.parse(await readFile(join(target, 'manifest.json'), 'utf8'));
         assert.equal(manifest.manifest_version, 3);
         assert.equal(manifest.version, source.version);
+        await checkIcons(target, manifest);
         assert.deepEqual(manifest.optional_host_permissions, ['https://github.com/*']);
         assert.deepEqual(manifest.host_permissions ?? [], []);
         assert.deepEqual(manifest.permissions, ['scripting', 'storage']);
