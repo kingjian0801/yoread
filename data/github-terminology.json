@@ -26,6 +26,24 @@
             "translations": { "zh-CN": { "beginner": "新建拉取请求（PR）", "professional": "新建 PR" } }
         },
         {
+            "english": "Filter",
+            "scope": "repository/releases",
+            "example": "比较发行版标签时，用筛选框缩小标签列表。",
+            "translations": { "zh-CN": { "beginner": "筛选", "professional": "筛选" } }
+        },
+        {
+            "english": "No results found",
+            "scope": "repository/releases",
+            "example": "发行版的标签比较菜单没有找到匹配项。",
+            "translations": { "zh-CN": { "beginner": "未找到结果", "professional": "未找到结果" } }
+        },
+        {
+            "english": "Source code",
+            "scope": "repository/releases",
+            "example": "发行版的资源区使用 Source code 标记 GitHub 生成的源码归档。",
+            "translations": { "zh-CN": { "beginner": "源代码", "professional": "源代码" } }
+        },
+        {
             "english": "Fork",
             "scope": "common",
             "example": "无法直接向上游推送时，使用 Fork 创建可写副本。",
@@ -69,6 +87,16 @@
                 "note": "沿用「确认合并」。中文必须表达这是最终确认步骤。"
             },
             "translations": { "zh-CN": { "beginner": "确认合并", "professional": "确认合并" } }
+        },
+        {
+            "english": "Delete this issue",
+            "scope": "repository/issues",
+            "example": "在删除议题的二次确认对话框中执行删除。",
+            "review": {
+                "reference": "https://docs.github.com/en/issues/tracking-your-work-with-issues/administering-issues/deleting-an-issue",
+                "note": "官方步骤将此按钮标为删除确认，两档都保留对象与确认阶段，和「删除议题」入口区分。"
+            },
+            "translations": { "zh-CN": { "beginner": "确认删除此议题", "professional": "确认删除此议题" } }
         },
         {
             "english": "Delete branch",
