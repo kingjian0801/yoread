@@ -52,3 +52,16 @@ node --test tests/integration/github-inspection.test.mjs
 待校对项按受影响页面数降序排列。报告按页面键和 URL 路径去重，筛选参数和锚点仍保存在复查用的样本链接中。每个问题每页保留一个复查位置。
 
 修复词条或匹配规则后重新采集相同位置并复跑。退出码 `0` 表示通过，`1` 表示仍有待校对项或页面访问失败，`2` 表示输入或词库读取失败。
+
+## 采集真实公开页面
+
+```sh
+npm ci
+npx playwright install --no-shell chromium
+npm run build
+node scripts/github-inspection-live.mjs > dist/github-live-inspection.json
+```
+
+采集器使用独立临时 Chromium 配置和构建后的 Yoread 扩展，分别读取汉化关闭与开启时的指定控件。真实页面检查覆盖仓库首页、Issues、PR、失败工作流筛选、Releases 详情和里程碑。未登录的全局议题视图会按实际 HTTP 状态或登录重定向记入访问失败。遇到改版导致控件位置消失时，记录选择器及已知原文，渲染值留空。报告保留控件证据与词库版本，禁止使用个人浏览器配置、凭据、用户正文或整页截图。
+
+GitHub Actions 的 **GitHub live localization inspection** 可从 `main` 手动运行并下载 `github-live-inspection` 产物。报告含发现项或访问失败时，工作流以退出码 `1` 结束并仍上传报告。按北京时间 09:00 的每日执行和登录态测试账户待真实提 PR 和议题视图验收通过后启用。PR 的核心浏览器 E2E 继续使用固定夹具。
