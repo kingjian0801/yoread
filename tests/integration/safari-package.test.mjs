@@ -40,6 +40,15 @@ test('rejects a Safari package with required access to a third-party host', asyn
     assert.match(result.stderr, /optional GitHub access only/);
 });
 
+test('rejects an invalid Apple Development team before starting a build', async t => {
+    const { extension, output } = await fixture(t);
+    const result = spawnSync(process.execPath, [script, extension, output, '--team', 'personal'], {
+        encoding: 'utf8', timeout: 20_000,
+    });
+    assert.equal(result.status, 1, result.stdout + result.stderr);
+    assert.match(result.stderr, /--team requires a 10-character Apple Developer Team ID/);
+});
+
 test('builds a locally signed macOS host with the same extension version and resources', {
     skip: process.platform !== 'darwin' && 'Xcode requires macOS',
     timeout: 120_000,

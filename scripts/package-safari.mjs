@@ -2,11 +2,9 @@ import { execFileSync } from 'node:child_process';
 import { lstatSync } from 'node:fs';
 import { mkdir, mkdtemp, readFile, rename, rm } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
+import { parseArgs } from 'node:util';
 
-async function packageSafari(extensionDirectory, outputDirectory) {
-    if (!extensionDirectory || !outputDirectory) {
-        throw new Error('Usage: node scripts/package-safari.mjs <safari-extension-dir> <output-dir>');
-    }
+async function packageSafari(extensionDirectory, outputDirectory, team) {
     const extension = resolve(extensionDirectory);
     const output = resolve(outputDirectory);
     const manifest = JSON.parse(await readFile(join(extension, 'manifest.json'), 'utf8'));
@@ -34,7 +32,8 @@ async function packageSafari(extensionDirectory, outputDirectory) {
             '-scheme', 'Yoread', '-configuration', 'Release', '-destination', 'generic/platform=macOS',
             '-derivedDataPath', build, '-quiet', 'build',
             'MACOSX_DEPLOYMENT_TARGET=15.0', 'ARCHS=arm64 x86_64', 'ONLY_ACTIVE_ARCH=NO',
-            'CODE_SIGN_STYLE=Manual', 'CODE_SIGN_IDENTITY=-', 'DEVELOPMENT_TEAM=',
+            'CODE_SIGN_STYLE=Manual', `CODE_SIGN_IDENTITY=${team ? 'Apple Development' : '-'}`,
+            `DEVELOPMENT_TEAM=${team ?? ''}`,
             `MARKETING_VERSION=${manifest.version}`,
         ], { stdio: 'inherit' });
         const candidate = join(build, 'Build', 'Products', 'Release', 'Yoread.app');
@@ -47,7 +46,17 @@ async function packageSafari(extensionDirectory, outputDirectory) {
 }
 
 try {
-    await packageSafari(...process.argv.slice(2));
+    const { positionals, values } = parseArgs({
+        allowPositionals: true,
+        options: { team: { type: 'string' } },
+    });
+    if (values.team !== undefined && !/^[A-Z0-9]{10}$/.test(values.team)) {
+        throw new Error('--team requires a 10-character Apple Developer Team ID');
+    }
+    if (positionals.length !== 2) {
+        throw new Error('Usage: node scripts/package-safari.mjs <safari-extension-dir> <output-dir> [--team TEAM_ID]');
+    }
+    await packageSafari(...positionals, values.team);
 } catch (error) {
     console.error(error.message);
     process.exitCode = 1;
