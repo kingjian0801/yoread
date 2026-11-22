@@ -24,21 +24,24 @@ test('switches the current tab to original and back in place', { tag: '@popup' }
     await expect(secondTab.getByRole('navigation')).toHaveText('拉取请求（PR）');
 
     await page.bringToFront();
-    await page.locator('summary').click();
+    const summary = page.locator('summary');
+    await summary.click();
     await page.getByRole('textbox', { name: 'Comment draft' }).fill('My unfinished review');
-    await page.locator('summary').focus();
-    const position = await page.evaluate(() => scrollY);
-    expect(position).toBeGreaterThan(0);
+    await summary.focus();
+    expect(await page.evaluate(() => scrollY)).toBeGreaterThan(0);
+    const viewTop = () => summary.evaluate(element => element.getBoundingClientRect().top);
+    const position = await viewTop();
     await page.keyboard.press(shortcut);
     await expect(nav).toHaveText('Pull requests');
     await expect(secondTab.getByRole('navigation')).toHaveText('拉取请求（PR）');
     await expect(page.getByRole('textbox', { name: 'Comment draft' })).toHaveValue('My unfinished review');
     await expect(page.locator('details')).toHaveAttribute('open', '');
-    expect(await page.evaluate(() => scrollY)).toBe(position);
+    // Browser scroll anchoring can adjust the page offset as label heights change.
+    await expect.poll(async () => Math.abs(await viewTop() - position)).toBeLessThanOrEqual(2);
 
     await page.keyboard.press(shortcut);
     await expect(nav).toHaveText('拉取请求（PR）');
-    await expect(page.locator('summary')).toBeFocused();
+    await expect(summary).toBeFocused();
     await expect(page.getByRole('textbox', { name: 'Comment draft' })).toHaveValue('My unfinished review');
 });
 
