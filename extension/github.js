@@ -54,6 +54,7 @@
     const queued = new Set();
     const cache = new Map();
     let enabled = false;
+    let showingOriginal = false;
     let mode = 'beginner';
     let terms = globalThis.yoreadGitHubTerms;
     let receivedUpdate = false;
@@ -68,6 +69,7 @@
     function readRoute() {
         clearTimeout(searchTimer);
         searchTimer = undefined;
+        if (route !== location.pathname) showingOriginal = false;
         restore();
         cache.clear();
         route = location.pathname;
@@ -122,6 +124,7 @@
     function owns(node) {
         if (!enabled) return false;
         if (route !== location.pathname) readRoute();
+        if (showingOriginal) return false;
         const element = node.parentElement;
         if (!page || !element?.closest(fixed) || element.closest(protectedContent) ||
             isIdentifier(element)) return false;
@@ -229,7 +232,7 @@
     }
 
     function scan(root, refreshTerms = false) {
-        if (!root?.isConnected || !page) return;
+        if (showingOriginal || !root?.isConnected || !page) return;
         if (root.nodeType === Node.TEXT_NODE) return translate(root, refreshTerms);
         if (root.nodeType !== Node.ELEMENT_NODE) return;
         if (root.matches(relativeTime)) localizeTime(root);
@@ -290,6 +293,7 @@
     }
 
     function schedule(node) {
+        if (showingOriginal && route === location.pathname) return;
         if (queued.size >= 60) {
             queued.clear();
             queued.add(document.body);
@@ -300,6 +304,7 @@
     }
 
     const observer = new MutationObserver(records => {
+        if (showingOriginal && route === location.pathname) return;
         for (const record of records) {
             if (record.type === 'characterData') {
                 if (changed.get(record.target)?.rendered !== record.target.data) schedule(record.target);
@@ -334,6 +339,32 @@
         if (enabled) document.querySelectorAll(globalHeader).forEach(schedule);
     };
 
+    function resetRendering() {
+        clearTimeout(timer);
+        clearTimeout(searchTimer);
+        timer = undefined;
+        searchTimer = undefined;
+        queued.clear();
+        cache.clear();
+        restore();
+    }
+
+    function togglePageOriginal(event) {
+        if (event.code !== 'KeyY' || !event.ctrlKey || !event.shiftKey ||
+            event.altKey || event.metaKey || event.defaultPrevented ||
+            event.repeat || event.isComposing || event.keyCode === 229) return;
+        const editor = 'input,textarea,select,[role="textbox"],[role="searchbox"],[role="combobox"],[role="spinbutton"]';
+        if (event.composedPath().some(target =>
+            target instanceof Element && (target.isContentEditable || target.matches(editor)))) return;
+        if (route !== location.pathname) readRoute();
+        if (!page) return;
+
+        event.preventDefault();
+        showingOriginal = !showingOriginal;
+        if (showingOriginal) resetRendering();
+        else scan(document.body);
+    }
+
     function setLocalization(next, nextMode = mode) {
         const selection = nextMode === 'professional' ? 'professional' : 'beginner';
         const modeChanged = mode !== selection;
@@ -348,16 +379,12 @@
         enabled = next;
         if (!enabled) {
             observer.disconnect();
+            removeEventListener('keydown', togglePageOriginal);
             removeEventListener('load', onHeaderReady);
             globalThis.navigation?.removeEventListener('currententrychange', onNavigation);
             removeEventListener('popstate', onNavigation);
-            clearTimeout(timer);
-            clearTimeout(searchTimer);
-            timer = undefined;
-            searchTimer = undefined;
-            queued.clear();
-            cache.clear();
-            restore();
+            showingOriginal = false;
+            resetRendering();
             return;
         }
         readRoute();
@@ -369,6 +396,7 @@
         if (document.readyState !== 'complete') addEventListener('load', onHeaderReady, { once: true });
         globalThis.navigation?.addEventListener('currententrychange', onNavigation);
         addEventListener('popstate', onNavigation);
+        addEventListener('keydown', togglePageOriginal);
         scan(document.body);
     }
 
