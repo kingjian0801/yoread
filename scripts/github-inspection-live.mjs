@@ -58,9 +58,9 @@ const publicSamples = [
 async function readControls(page, controls) {
     return page.evaluate(controls => controls.map(({ location, attribute }) => {
         const target = document.querySelector(location);
-        if (!target || target.closest(
-            'article, .markdown-body, pre, code, [contenteditable], [role="log"], form:not([role="search"]) textarea',
-        )) return '';
+        const protectedContent = 'article, .markdown-body, pre, code, [contenteditable], [role="log"], textarea';
+        if (!target || target.closest(protectedContent) ||
+            (!attribute && target.querySelector(protectedContent))) return '';
         const value = attribute ? target.getAttribute(attribute) : target.innerText;
         return (value ?? '').trim().replace(/\s+/g, ' ').slice(0, 260);
     }), controls);

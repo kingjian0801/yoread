@@ -30,6 +30,7 @@ test('collects public controls and access failures without exporting page conten
     const location = '#query';
     const label = 'Search or jump to, type / to search';
     fixture.html = `<header class="AppHeader"><button id="query" aria-label="${label}">Search</button></header>
+        <button id="mixed-control">Open <span class="markdown-body">Private nested content</span></button>
         <article><p>Synthetic private text</p><button id="unrelated">Skip reporting this</button></article>`;
     const publicUrl = 'https://github.com/acme/demo';
     const dashboardUrl = 'https://github.com/issues';
@@ -42,14 +43,20 @@ test('collects public controls and access failures without exporting page conten
         await toggle.setChecked(enabled);
         await expect(popup.locator('#github-status')).toHaveText(enabled ? 'GitHub 汉化已开启。' : 'GitHub 汉化已关闭。');
     }, [
-        { pageType: 'repository', url: publicUrl, controls: [{ location, attribute: 'aria-label', source: label }] },
+        { pageType: 'repository', url: publicUrl, controls: [
+            { location, attribute: 'aria-label', source: label },
+            { location: '#mixed-control', source: 'Open' },
+        ] },
         { pageType: 'issues', url: dashboardUrl, controls: [{ location: 'nav h2', source: 'Views' }] },
     ]);
 
     expect(samples).toEqual([
         {
             pageType: 'repository', url: publicUrl,
-            controls: [{ location, attribute: 'aria-label', source: label, rendered: '搜索或跳转到，键入 / 搜索' }],
+            controls: [
+                { location, attribute: 'aria-label', source: label, rendered: '搜索或跳转到，键入 / 搜索' },
+                { location: '#mixed-control', source: 'Open', rendered: '' },
+            ],
         },
         { pageType: 'issues', url: dashboardUrl, error: 'HTTP 404' },
     ]);
@@ -59,7 +66,7 @@ test('collects public controls and access failures without exporting page conten
     expect(report.status, report.stderr).toBe(1);
     expect(JSON.parse(report.stdout)).toMatchObject({
         pages: [{ pageType: 'repository', matched: 1 }],
-        findings: [],
+        findings: [{ source: 'Open', category: 'rule-failed' }],
         accessFailures: [{ pageType: 'issues', error: 'HTTP 404' }],
     });
 });

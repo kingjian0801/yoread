@@ -26,8 +26,13 @@ jobs:
       - run: |
           npm ci
           npm run build
+          report=$(mktemp)
+          trap 'rm -f "$report"' EXIT
           result=0
-          node scripts/github-inspection-live.mjs > dist/github-live-inspection.json || result=$?
+          node scripts/github-inspection-live.mjs > "$report" || result=$?
+          if [[ "$result" == 0 || "$result" == 1 ]]; then
+            mv "$report" dist/github-live-inspection.json
+          fi
           case "$result" in
             0) echo 'Inspection completed without findings.' >> "$GITHUB_STEP_SUMMARY" ;;
             1) echo 'Inspection completed with findings or access failures. The anonymous run may report the sign-in-only Issues dashboard as unavailable.' >> "$GITHUB_STEP_SUMMARY" ;;
