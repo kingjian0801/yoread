@@ -45,7 +45,7 @@ test('localizes milestone controls and progress without changing milestone data 
                               aria-valuemin="0" aria-valuemax="100" aria-valuenow="75"></span>
                     </div>
                 </li>
-                <button>Open</button>
+                <div id="reused"><button>Open</button></div>
             </div>
             <script>
                 document.querySelector('#sort').addEventListener('click', () => {
@@ -77,7 +77,12 @@ test('localizes milestone controls and progress without changing milestone data 
     await expect(page.locator(`a[href="${issueFilter}"]`)).toHaveText('1 打开');
     await expect(page.locator('.milestoneDescription__fixture button')).toHaveText('Open');
     await expect(page.getByRole('heading', { level: 3 }).getByRole('link')).toHaveText('Open');
-    await expect(page.getByRole('button', { name: '打开', exact: true })).toBeVisible();
+    const reused = page.locator('#reused');
+    await expect(reused.getByRole('button')).toHaveText('打开');
+    await reused.evaluate(element => { element.className = 'milestoneDescription__fixture'; });
+    await expect(reused.getByRole('button')).toHaveText('Open');
+    await reused.evaluate(element => { element.className = ''; });
+    await expect(reused.getByRole('button')).toHaveText('打开');
     await mode.selectOption('professional');
     await expect(openTab).toHaveText('进行中2');
 

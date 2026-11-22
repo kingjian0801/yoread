@@ -1,4 +1,4 @@
-import { expect, test } from './browser-fixture.mjs';
+import { expect, setKey, test, translate } from './browser-fixture.mjs';
 
 const saved = '/issues/views/42';
 const dashboard = `
@@ -22,6 +22,7 @@ const dashboard = `
                 <label for="query">Search Issues</label>
                 <input id="query" type="text" value="is:issue is:open">
             </div>
+            <div data-component="Blankslate.Description"><a href="/search">all of GitHub</a></div>
             <ul data-listview-component="items-list">
                 <li>
                     <div data-listview-item-title-container>
@@ -32,6 +33,20 @@ const dashboard = `
             </ul>
         </section>
     </main>`;
+
+test('keeps manual webpage translation of linked prose independent of the dashboard UI', async ({ browserApp }) => {
+    const { fixture, open, page } = browserApp;
+    fixture.html = dashboard + '<article class="markdown-body"><p><a href="/guide">Read the guide.</a></p></article>';
+    const popup = await open('github.com', '/issues');
+    const prose = page.locator('article a');
+    await setKey(popup);
+    await translate(popup);
+    await expect(prose).toHaveText('译文 · Read the guide.');
+    await popup.getByRole('switch', { name: 'GitHub 界面汉化' }).check();
+    await expect(page.getByRole('link', { name: '已创建' })).toBeVisible();
+    await expect(prose).toHaveText('译文 · Read the guide.');
+    await expect(prose).toHaveAttribute('href', '/guide');
+});
 
 test('localizes built-in Issues dashboard navigation without touching custom views or links', async ({ browserApp }) => {
     const { fixture, open, page } = browserApp;
@@ -45,6 +60,7 @@ test('localizes built-in Issues dashboard navigation without touching custom vie
     await expect(page.getByRole('heading', { name: '由您创建', exact: true })).toBeVisible();
     await expect(page.getByRole('button', { name: '新建视图' })).toBeVisible();
     await expect(page.getByRole('textbox', { name: '搜索议题' })).toHaveValue('is:issue is:open');
+    await expect(page.getByRole('link', { name: '所有 GitHub' })).toHaveAttribute('href', '/search');
     await expect(page.getByRole('link', { name: 'Open', exact: true }).first()).toHaveAttribute('href', saved);
     await expect(page.getByRole('link', { name: 'Open', exact: true }).last()).toHaveAttribute('href', '/acme/demo/issues/2');
     await expect(page.getByTestId('state-label')).toHaveText('打开');

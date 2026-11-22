@@ -151,11 +151,12 @@
     const dashboardResults = '[data-listview-component="header"], h2[id$="-list-view-container-title"]';
     const dashboardResultCount = /^(\d+|\d{1,3}(?:,\d{3})+) results?$/;
     const dashboardDialog = ':is(dialog, [role="dialog"])';
+    const dashboardBlankSlate = 'main [data-component="Blankslate.Description"]';
     const dashboardFixed = [
         ':is(main nav, aside nav) a[href]', ':is(main nav, aside nav) h2', dashboardPageTitle,
         'main [role="search"] label', 'main search label', dashboardResults,
         `${dashboardDialog} [data-component="Dialog.Title"]`, `${dashboardDialog} label`,
-        'main [data-component="Blankslate.Heading"]', 'main [data-component="Blankslate.Description"]',
+        'main [data-component="Blankslate.Heading"]', dashboardBlankSlate,
     ].join(',');
     const dashboardProtected = [
         '[data-listview-item-title-container]', '[data-component="CounterLabel"]',
@@ -287,7 +288,8 @@
         if (pageKey === 'issues') {
             return Boolean(element.closest(dashboardProtected) ||
                 (savedIssuesView.test(route) && element.closest(dashboardPageTitle) && !element.closest(dashboardDialog)) ||
-                (link && (link.origin !== location.origin || !builtInIssuesView.test(link.pathname))));
+                (link && link.closest(fixedOnPage) && !link.closest(globalHeader) &&
+                    !link.closest(dashboardBlankSlate) && (link.origin !== location.origin || !builtInIssuesView.test(link.pathname))));
         }
         if (!link) return false;
         const path = link.pathname.toLowerCase().replace(/\/+$/, '');
@@ -337,7 +339,8 @@
         const element = node.parentElement;
         return Boolean(page && element && (element.closest(identifiers) || element.closest('relative-time') ||
             (collaborationPages.includes(pageKey) && element.closest(collaborationProtected)) ||
-            ((pageKey === 'repository/actions' || pageKey === 'issues') && isIdentifier(element)) ||
+            (pageKey === 'repository/actions' && isIdentifier(element)) ||
+            (pageKey === 'issues' && !element.closest(userContent) && isIdentifier(element)) ||
             (element.closest(fixedOnPage) && !element.closest(userContent))));
     }
 
@@ -610,7 +613,7 @@
             if (record.type === 'characterData') {
                 if (changed.get(record.target)?.rendered !== record.target.data) schedule(record.target);
             } else if (record.type === 'attributes') {
-                if (record.attributeName === 'class' && record.target.matches(reactHeader)) {
+                if (record.attributeName === 'class' && (record.target.matches(reactHeader) || (page && pageKey !== 'repository'))) {
                     schedule(record.target);
                 } else if (record.attributeName === 'aria-label' &&
                     (changedLabels.has(record.target) ||
