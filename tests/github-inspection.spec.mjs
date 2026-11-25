@@ -81,6 +81,31 @@ test('collects public controls and access failures without exporting page conten
     });
 });
 
+test('collects the search label after the public header finishes initializing', async ({ browserApp }) => {
+    const { fixture, openPopup, page } = browserApp;
+    const url = 'https://github.com/acme/demo';
+    const location = '#query';
+    const source = 'Search or jump to, type / to search';
+    fixture.html = `<react-partial partial-name="marketing-header">
+        <header><button id="query" aria-label="Search">Search</button></header>
+    </react-partial>
+    <script>
+        setTimeout(() => document.querySelector('#query').setAttribute('aria-label', '${source}'), 350);
+        setTimeout(() => document.querySelector('react-partial').classList.add('loaded'), 1100);
+    </script>`;
+    const popup = await openPopup();
+    const toggle = popup.locator('#github');
+    const samples = await collectGithubSamples(page, async enabled => {
+        await toggle.setChecked(enabled);
+        await expect(popup.locator('#github-status')).toHaveText(enabled ? 'GitHub 汉化已开启。' : 'GitHub 汉化已关闭。');
+    }, [{
+        pageType: 'repository', url,
+        controls: [{ location, attribute: 'aria-label', source, waitForHeader: true }],
+    }]);
+
+    expect(samples[0].controls).toEqual([{ location, source, attribute: 'aria-label', rendered: '搜索或跳转到，键入 / 搜索' }]);
+});
+
 test('opens public controls and follows only approved same-repository detail links', async ({ browserApp }) => {
     const { openPopup, fixture, page } = browserApp;
     const visits = [];

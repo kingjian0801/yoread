@@ -23,8 +23,11 @@ const publicSamples = [
         waitForLoad: true,
         controls: [
             control('nav a[data-tab-item="code"]', 'Code'),
-            control('button[data-analytics-event*="searchbar_input_global_navbar"], button[data-target="qbsearch-input.inputButton"]',
-                'Search or jump to, type / to search', 'aria-label'),
+            {
+                ...control('button[data-analytics-event*="searchbar_input_global_navbar"], button[data-target="qbsearch-input.inputButton"]',
+                    'Search or jump to, type / to search', 'aria-label'),
+                waitForHeader: true,
+            },
         ],
     },
     {
@@ -193,13 +196,23 @@ export async function collectGithubSamples(page, setLocalization, samples = publ
         }
         if (waitForLoad) await page.waitForLoadState('load', { timeout }).catch(() => {});
         if (open) await openControl(page, open);
+        const search = controls.find(control => control.waitForHeader);
+        if (search) {
+            // Read both labels after GitHub has replaced its server-rendered search control.
+            await page.waitForFunction(location => {
+                const trigger = document.querySelector(location);
+                if (!trigger || trigger.closest('qbsearch-input:not(:defined)')) return false;
+                const header = trigger.closest('react-partial[partial-name="global-nav-bar"], react-partial[partial-name="marketing-header"]');
+                return header ? header.classList.contains('loaded') : document.readyState === 'complete';
+            }, search.location, { timeout }).catch(() => {});
+        }
         const baseline = await readControls(page, controls);
         await setLocalization(true);
         try {
             if (open) await openControl(page, open);
             const rendered = await readControls(page, controls);
             results.push({
-                ...result, controls: controls.map(({ fixedSource, ...item }, index) => ({
+                ...result, controls: controls.map(({ fixedSource, waitForHeader, ...item }, index) => ({
                     ...item,
                     source: fixedSource ? item.source : baseline[index] || item.source,
                     rendered: fixedSource && baseline[index] !== item.source ? '' : rendered[index],

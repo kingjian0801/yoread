@@ -66,4 +66,4 @@ node scripts/github-inspection-live.mjs > dist/github-live-inspection.json
 
 未登录的全局议题视图以及无法打开的公开样本会记入访问失败。已明确界定的控件可以收集更新后的源文案。控件消失、未显示，或通过布局定位的运行状态文案无法确认时，保留选择器及已知原文，渲染值留空。报告保留控件证据与词库版本，禁止使用个人浏览器配置、凭据、用户正文或整页截图。
 
-GitHub Actions 的 **GitHub live localization inspection** 可从 `main` 手动运行并下载 `github-live-inspection` 产物。报告含发现项或访问失败时，工作流以退出码 `1` 结束并仍上传报告。按北京时间 09:00 的每日执行和登录态测试账户待真实提 PR 和议题视图验收通过后启用。PR 的核心浏览器 E2E 继续使用固定夹具。
+GitHub Actions 的 **GitHub live localization inspection** 每日北京时间 09:00 在 `main` 触发公开巡检，也可手动运行。报告含发现项或访问失败时，工作流以退出码 `1` 结束，并上传 `github-live-inspection` 产物。全局议题视图需要登录，匿名巡检会记录它的访问失败。登录态巡检待专用测试账户可用后单独配置。PR 的核心浏览器 E2E 继续使用固定夹具。
