@@ -4,7 +4,8 @@
 }
 
 body {
-    inline-size: min(18rem, 100vw);
+    /* Safari sizes the toolbar popover from the document's preferred width. */
+    width: 360px;
     margin: 0;
 }
 
