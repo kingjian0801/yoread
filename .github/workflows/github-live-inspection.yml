@@ -2,6 +2,8 @@ name: GitHub live localization inspection
 
 on:
   workflow_dispatch:
+  schedule:
+    - cron: '0 1 * * *' # 09:00 Asia/Shanghai
 
 permissions:
   contents: read
