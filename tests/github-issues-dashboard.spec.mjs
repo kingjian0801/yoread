@@ -100,6 +100,57 @@ test('localizes built-in Issues dashboard navigation without touching custom vie
     await expect(page.getByRole('textbox', { name: '搜索议题' })).toHaveValue('is:pr is:open');
 });
 
+test('localizes the current GitHub saved-view route and protects custom copy', async ({ browserApp }) => {
+    const { fixture, open, page } = browserApp;
+    const realRoute = '/issues/SSC_kExample_42';
+    fixture.html = dashboard
+        .replace(saved, realRoute)
+        .replace('>Created by me</h1>', '>Open</h1>')
+        .replace('data-component="PageHeader.Description"></div>', 'data-component="PageHeader.Description">No results</div>');
+    const popup = await open('github.com', realRoute);
+    const toggle = popup.getByRole('switch', { name: 'GitHub 界面汉化' });
+    await toggle.check();
+    await expect(page.getByRole('heading', { name: '视图', exact: true })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Open', exact: true })).toBeVisible();
+    await expect(page.locator('[data-component="PageHeader.Description"]')).toHaveText('No results');
+    await expect(page.getByRole('textbox', { name: '搜索议题' })).toHaveValue('is:issue is:open');
+    await toggle.uncheck();
+    await expect(page.getByRole('heading', { name: 'Views' })).toBeVisible();
+});
+
+test('localizes the saved views heading, icon-button label, and inline GitHub view editor', async ({ browserApp }) => {
+    const { fixture, open, page } = browserApp;
+    fixture.html = `<main>
+        <div class="headerRow__example" id="saved-views-header">
+            <span class="headerRowText__example">Views</span>
+            <button data-component="IconButton" aria-labelledby="add-view"></button>
+            <span id="add-view" data-component="Tooltip" aria-hidden="true">Create view</span>
+        </div>
+        <nav data-component="NavList" aria-labelledby="saved-views-header">
+            <a href="/issues/SSC_kExample_42">Open</a>
+        </nav>
+        <form>
+            <label data-component="FormControl.Label">Title <input placeholder="Untitled view" value="Open"></label>
+            <label data-component="FormControl.Label">Description <input value="No results"></label>
+            <label data-component="FormControl.Label">Query <input value="is:issue is:open"></label>
+        </form>
+        <article><span data-component="Tooltip" aria-hidden="true">Create view</span></article>
+    </main>`;
+    const popup = await open('github.com', '/issues/SSC_kExample_42');
+    const toggle = popup.getByRole('switch', { name: 'GitHub 界面汉化' });
+    await toggle.check();
+    await expect(page.getByText('视图', { exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: '新建视图' })).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Open' })).toBeVisible();
+    await expect(page.getByRole('textbox', { name: '标题' })).toHaveValue('Open');
+    await expect(page.getByRole('textbox', { name: '描述' })).toHaveValue('No results');
+    await expect(page.getByRole('textbox', { name: '查询' })).toHaveValue('is:issue is:open');
+    await expect(page.locator('article')).toHaveText('Create view');
+    await toggle.uncheck();
+    await expect(page.getByRole('button', { name: 'Create view' })).toBeVisible();
+    await expect(page.getByRole('textbox', { name: 'Description' })).toHaveValue('No results');
+});
+
 test('applies dashboard filters, edits a saved view, and restores the latest UI text', async ({ browserApp }) => {
     const { fixture, open, page } = browserApp;
     fixture.html = dashboard
