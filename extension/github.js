@@ -154,14 +154,18 @@
         ['New milestone', '新建里程碑'],
     ]);
     const builtInIssuesView = /^\/issues(?:\/(?:created|assigned|mentioned|recent))?\/?$/;
-    const savedIssuesView = /^\/issues\/views?(?:\/[\w-]+)?\/?$/;
+    const savedIssuesView = /^\/issues\/(?:views?(?:\/[\w-]+)?|SSC_[\w-]+)\/?$/;
     const dashboardPageTitle = 'main h1, [data-component="PageHeader.Description"]';
     const dashboardResults = '[data-listview-component="header"], h2[id$="-list-view-container-title"]';
     const dashboardResultCount = /^(\d+|\d{1,3}(?:,\d{3})+) results?$/;
     const dashboardDialog = ':is(dialog, [role="dialog"])';
+    const dashboardViewForm = 'form:has(input[placeholder="Untitled view"])';
+    const dashboardTooltip = 'span[data-component="Tooltip"][id][aria-hidden="true"]:not([hidden],[inert],[translate="no"])';
     const dashboardBlankSlate = 'main [data-component="Blankslate.Description"]';
     const dashboardFixed = [
         ':is(main nav, aside nav) a[href]', ':is(main nav, aside nav) h2', dashboardPageTitle,
+        '[class^="headerRow__"]:has(+ nav[data-component="NavList"]) > [class^="headerRowText__"]',
+        `${dashboardViewForm} [data-component="FormControl.Label"]`, dashboardTooltip,
         'main [role="search"] label', 'main search label', dashboardResults,
         `${dashboardDialog} [data-component="Dialog.Title"]`, `${dashboardDialog} label`,
         'main [data-component="Blankslate.Heading"]', dashboardBlankSlate,
@@ -339,7 +343,10 @@
         // GitHub hides this tooltip visually but its button still uses the accessible name.
         const reviewLabel = pageKey === 'repository/pull' && element.matches(reviewThreadLabel) &&
             element.matches('[aria-hidden="true"]:not([translate="no"],[hidden],[inert])');
-        const content = reviewLabel ? element.parentElement : element;
+        const viewLabel = pageKey === 'issues' && element.matches(dashboardTooltip) &&
+            dashboardLabels.has(originalText(element)) &&
+            element.parentElement.querySelector(`button[data-component="IconButton"][aria-labelledby~="${CSS.escape(element.id)}"]`);
+        const content = reviewLabel || viewLabel ? element.parentElement : element;
         if (content.closest(protectedContent) ||
             (collaborationPages.includes(pageKey) && element.closest(collaborationProtected)) ||
             (milestonePage && element.closest(milestoneProtected)) ||
@@ -376,7 +383,9 @@
 
     function lookup(source, exactOnly = false, useScopedTerms = true) {
         const scopedTerms = useScopedTerms && globalThis.yoreadGitHubPageTerms?.[pageKey];
-        if (pageKey === 'issues' && (source === 'New view' || source === 'Create a view')) return '新建视图';
+        if (pageKey === 'issues' && (source === 'New view' || source === 'Create a view' || source === 'Create view')) {
+            return '新建视图';
+        }
         for (const entries of [scopedTerms, terms]) {
             if (!entries || !Object.hasOwn(entries, source)) continue;
             const override = entries[source][mode];
