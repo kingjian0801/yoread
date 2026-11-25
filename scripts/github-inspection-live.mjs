@@ -26,7 +26,7 @@ const publicSamples = [
             {
                 ...control('button[data-analytics-event*="searchbar_input_global_navbar"], button[data-target="qbsearch-input.inputButton"]',
                     'Search or jump to, type / to search', 'aria-label'),
-                waitForTranslation: true,
+                waitForHeader: true,
             },
         ],
     },
@@ -196,21 +196,23 @@ export async function collectGithubSamples(page, setLocalization, samples = publ
         }
         if (waitForLoad) await page.waitForLoadState('load', { timeout }).catch(() => {});
         if (open) await openControl(page, open);
+        const search = controls.find(control => control.waitForHeader);
+        if (search) {
+            // Read both labels after GitHub has replaced its server-rendered search control.
+            await page.waitForFunction(location => {
+                const trigger = document.querySelector(location);
+                if (!trigger || trigger.closest('qbsearch-input:not(:defined)')) return false;
+                const header = trigger.closest('react-partial[partial-name="global-nav-bar"], react-partial[partial-name="marketing-header"]');
+                return header ? header.classList.contains('loaded') : document.readyState === 'complete';
+            }, search.location, { timeout }).catch(() => {});
+        }
         const baseline = await readControls(page, controls);
         await setLocalization(true);
         try {
             if (open) await openControl(page, open);
-            // The toggle can acknowledge before GitHub hydrates the search header.
-            await Promise.all(controls.map(({ location, attribute, source, waitForTranslation }, index) => {
-                if (!waitForTranslation) return;
-                return page.waitForFunction(({ location, attribute, original }) => {
-                    const label = document.querySelector(location)?.getAttribute(attribute);
-                    return Boolean(label?.trim() && label.trim().replace(/\s+/g, ' ') !== original);
-                }, { location, attribute, original: baseline[index] || source }, { timeout }).catch(() => {});
-            }));
             const rendered = await readControls(page, controls);
             results.push({
-                ...result, controls: controls.map(({ fixedSource, waitForTranslation, ...item }, index) => ({
+                ...result, controls: controls.map(({ fixedSource, waitForHeader, ...item }, index) => ({
                     ...item,
                     source: fixedSource ? item.source : baseline[index] || item.source,
                     rendered: fixedSource && baseline[index] !== item.source ? '' : rendered[index],
