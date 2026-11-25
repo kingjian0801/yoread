@@ -2,6 +2,19 @@ import { expect, test } from './browser-fixture.mjs';
 
 test.use({ extensionTarget: 'edge' });
 
+test('gives the desktop candidate popup its preferred width before the host is sized', async ({ browserApp }) => {
+    const { openPopup } = browserApp;
+    const popup = await openPopup();
+    // Safari can start a toolbar popover in a narrow provisional viewport.
+    await popup.setViewportSize({ width: 112, height: 580 });
+
+    const heading = popup.getByRole('heading', { name: 'GitHub 界面汉化' });
+    await expect(heading).toBeVisible();
+    const bounds = await heading.boundingBox();
+    expect(bounds.width).toBeGreaterThanOrEqual(320);
+    expect(bounds.height).toBeLessThan(30);
+});
+
 test('GitHub-only candidate localizes offline after site access and restores', async ({ browserApp }) => {
     const { context, fixture, open, page } = browserApp;
     fixture.html = `<nav aria-label="Repository">
