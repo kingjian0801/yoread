@@ -85,6 +85,7 @@
         'react-app[app-name="repo"] a[data-component="Pagination.Page"]',
         'react-app[app-name="repo"] a[data-component="Button"]',
         '[data-testid="header-state"][data-component="StateLabel"]',
+        'nav a[data-telemetry-action^="pull_requests.navigation."]',
         'react-app[app-name="repo"] [class*="metadataTitle__"]',
         'react-app[app-name="repo"] [data-testid^="sidebar-"] h3[data-component="Heading"]',
         '.gh-header-meta .State', '.gh-header-show .tabnav-tab',

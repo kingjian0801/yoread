@@ -176,6 +176,28 @@ test('localizes creating and reviewing a pull request with stable confirmation t
     await expect(page.getByRole('navigation')).toHaveAccessibleName('Pull request navigation');
 });
 
+test('localizes the GitHub conversation tab bar with its current telemetry attributes', async ({ browserApp }) => {
+    const { fixture, open, page } = browserApp;
+    fixture.html = `<main>
+        <nav aria-label="Pull request navigation" data-turbo="false">
+            <a data-telemetry-action="pull_requests.navigation.conversation" href="/acme/demo/pull/39">Conversation</a>
+            <a data-telemetry-action="pull_requests.navigation.files" href="/acme/demo/pull/39/files">
+                <svg aria-hidden="true"></svg>Files changed
+            </a>
+        </nav>
+        <article class="comment-body">Files changed</article>
+    </main>`;
+    const popup = await open('github.com', '/acme/demo/pull/39');
+    const toggle = popup.getByRole('switch', { name: 'GitHub 界面汉化' });
+    await toggle.check();
+    const nav = page.getByRole('navigation', { name: '拉取请求导航' });
+    await expect(nav.getByRole('link', { name: '讨论' })).toBeVisible();
+    await expect(nav.getByRole('link', { name: '更改的文件' })).toHaveAttribute('href', '/acme/demo/pull/39/files');
+    await expect(page.locator('article')).toHaveText('Files changed');
+    await toggle.uncheck();
+    await expect(page.getByRole('link', { name: 'Files changed' })).toBeVisible();
+});
+
 test('localizes classic compare form and keeps branch names and accessible refs intact', async ({ browserApp }) => {
     const { fixture, open, page } = browserApp;
     fixture.html = `<main>
