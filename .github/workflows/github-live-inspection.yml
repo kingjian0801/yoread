@@ -30,7 +30,7 @@ jobs:
           trap 'rm -f "$report"' EXIT
           result=0
           node scripts/github-inspection-live.mjs > "$report" || result=$?
-          if [[ "$result" == 0 || "$result" == 1 ]]; then
+          if [ "$result" = 0 ] || [ "$result" = 1 ]; then
             mv "$report" dist/github-live-inspection.json
           fi
           case "$result" in

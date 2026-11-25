@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -8,6 +8,39 @@ import { test } from 'node:test';
 
 const cli = fileURLToPath(new URL('../../scripts/github-inspection.mjs', import.meta.url));
 const repo = 'https://github.com/acme/demo';
+
+test('preserves the cloud inspection report on findings in the container shell', {
+    skip: !existsSync('/bin/dash') && 'Requires the container-compatible dash shell',
+}, async t => {
+    const workflow = readFileSync(new URL('../../.github/workflows/github-live-inspection.yml', import.meta.url), 'utf8');
+    const step = workflow.match(/^      - run: \|\r?\n([\s\S]+?)^      - uses:/m)?.[1];
+    assert.ok(step, 'The workflow has an inspection step');
+    const fixture = `npm() { return 0; }
+node() { printf '%s\\n' '{"findings":[]}'; return "$COLLECTOR_STATUS"; }
+`;
+    for (const [status, summaryText] of [
+        [0, /without findings/],
+        [1, /with findings or access failures/],
+        [2, /could not produce a report/],
+    ]) {
+        await t.test(`collector exit ${status}`, t => {
+            const cwd = mkdtempSync(join(tmpdir(), 'yoread-inspection-workflow-'));
+            t.after(() => rmSync(cwd, { recursive: true, force: true }));
+            mkdirSync(join(cwd, 'dist'));
+            const summary = join(cwd, 'summary');
+            const result = spawnSync('/bin/dash', ['-e', '-c', fixture + step], {
+                cwd, encoding: 'utf8',
+                env: { ...process.env, COLLECTOR_STATUS: String(status), GITHUB_STEP_SUMMARY: summary },
+            });
+            const artifact = join(cwd, 'dist', 'github-live-inspection.json');
+            assert.equal(result.status, status, result.stderr);
+            assert.equal(existsSync(artifact), status < 2, result.stderr);
+            if (status < 2) assert.deepEqual(JSON.parse(readFileSync(artifact)), { findings: [] });
+            assert.match(readFileSync(summary, 'utf8'), summaryText);
+            assert.equal(result.stderr, '');
+        });
+    }
+});
 
 function inspect(samples, ...args) {
     return spawnSync(process.execPath, [cli, ...args], {
