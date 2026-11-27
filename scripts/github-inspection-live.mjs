@@ -9,6 +9,7 @@ import { chromium, expect } from '@playwright/test';
 
 const github = 'https://github.com';
 const timeout = 5000;
+const menuStabilityMs = 500;
 const protectedContent = 'article, .markdown-body, pre, code, [contenteditable], [role="log"], textarea';
 const control = (location, source, attribute) => ({ location, source, ...(attribute && { attribute }) });
 const codeDownloadLabel = '[aria-label="Repository actions"] a[href^="/cli/cli/archive/refs/heads/"][href$=".zip"] [data-component="ActionList.Item.Label"]';
@@ -33,14 +34,14 @@ const publicSamples = [
     {
         pageType: 'repository', path: '/cli/cli',
         open: 'main button[aria-expanded][data-component="Button"]:has(svg.octicon-code)',
-        controls: [control(codeDownloadLabel, 'Download ZIP')],
+        controls: [{ ...control(codeDownloadLabel, 'Download ZIP'), waitForTranslation: '下载 ZIP 压缩包' }],
     },
     {
         pageType: 'repository', path: '/cli/cli',
         open: '#ref-picker-repos-header-ref-selector',
         controls: [
-            control(`${gitRefTabs}[id$="-tab-branch"]`, 'Branches'),
-            control(`${gitRefTabs}[id$="-tab-tag"]`, 'Tags'),
+            { ...control(`${gitRefTabs}[id$="-tab-branch"]`, 'Branches'), waitForTranslation: '分支' },
+            { ...control(`${gitRefTabs}[id$="-tab-tag"]`, 'Tags'), waitForTranslation: '标签' },
         ],
     },
     {
@@ -111,6 +112,10 @@ const publicSamples = [
 async function readControls(page, controls) {
     await Promise.all(controls.map(({ location }) =>
         page.locator(location).first().waitFor({ state: 'attached', timeout }).catch(() => {})));
+    return readRenderedValues(page, controls);
+}
+
+function readRenderedValues(page, controls) {
     return page.evaluate(({ controls, protectedContent }) => controls.map(({ location, attribute }) => {
         const target = document.querySelector(location);
         if (!target?.checkVisibility({ visibilityProperty: true }) || target.closest(protectedContent) ||
@@ -210,9 +215,24 @@ export async function collectGithubSamples(page, setLocalization, samples = publ
         await setLocalization(true);
         try {
             if (open) await openControl(page, open);
-            const rendered = await readControls(page, controls);
+            let rendered = await readControls(page, controls);
+            const pending = controls.flatMap(({ source, waitForTranslation }, index) =>
+                waitForTranslation && (baseline[index] || source) === source
+                    ? [{ index, expected: waitForTranslation }] : []);
+            if (pending.length) {
+                // Wait for menu labels to stay translated across reads during hydration.
+                // Retain the last observation on timeout so the report still flags mismatches.
+                let matchingSince;
+                await expect.poll(async () => {
+                    rendered = await readRenderedValues(page, controls);
+                    const matches = pending.every(({ index, expected }) => rendered[index] === expected);
+                    const now = performance.now();
+                    matchingSince = matches ? matchingSince ?? now : undefined;
+                    return matches && now - matchingSince >= menuStabilityMs;
+                }, { timeout, intervals: [100] }).toBe(true).catch(() => {});
+            }
             results.push({
-                ...result, controls: controls.map(({ fixedSource, waitForHeader, ...item }, index) => ({
+                ...result, controls: controls.map(({ fixedSource, waitForHeader, waitForTranslation, ...item }, index) => ({
                     ...item,
                     source: fixedSource ? item.source : baseline[index] || item.source,
                     rendered: fixedSource && baseline[index] !== item.source ? '' : rendered[index],
