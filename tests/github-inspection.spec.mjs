@@ -243,3 +243,56 @@ test('localizes a late public Code menu download label without changing archive 
     await expect(archive).toHaveText('Download ZIP');
     expect(fixture.requests).toHaveLength(0);
 });
+
+test('collects menu translations after GitHub replaces the opened controls', async ({ browserApp }) => {
+    const { fixture, page } = browserApp;
+    fixture.html = `<button id="refs" aria-expanded="false" onclick="
+        this.setAttribute('aria-expanded', 'true');
+        document.querySelector('#refs-menu').hidden = false;
+    ">Choose reference</button>
+    <div id="refs-menu" hidden><button id="branches" role="tab">Branches</button><button id="tags" role="tab"></button></div>`;
+    const [sample] = await collectGithubSamples(page, async enabled => {
+        if (!enabled) return;
+        // Model the English menu being replaced, then translated by the extension.
+        await page.evaluate(() => {
+            const control = document.querySelector('#branches');
+            const replacement = control.cloneNode(true);
+            control.replaceWith(replacement);
+            const tags = document.querySelector('#tags');
+            tags.textContent = 'Tags';
+            setTimeout(() => { replacement.textContent = '分支'; }, 450);
+            setTimeout(() => { tags.textContent = 'All tags'; }, 200);
+            setTimeout(() => { tags.textContent = '标签'; }, 1500);
+        });
+    }, [{
+        pageType: 'repository', url: 'https://github.com/acme/demo', open: '#refs',
+        controls: [
+            { location: '#branches', source: 'Branches', waitForTranslation: '分支' },
+            { location: '#tags', source: 'Tags', waitForTranslation: '标签' },
+        ],
+    }]);
+
+    expect(sample.controls.map(control => control.rendered)).toEqual(['分支', '标签']);
+});
+
+test('reports English when GitHub replaces a briefly translated menu', async ({ browserApp }) => {
+    const { fixture, page } = browserApp;
+    fixture.html = '<button id="branches" role="tab">Branches</button>';
+    const [sample] = await collectGithubSamples(page, async enabled => {
+        if (!enabled) return;
+        await page.evaluate(() => {
+            const control = document.querySelector('#branches');
+            control.textContent = '分支';
+            setTimeout(() => {
+                const replacement = control.cloneNode(false);
+                replacement.textContent = 'Branches';
+                control.replaceWith(replacement);
+            }, 360);
+        });
+    }, [{
+        pageType: 'repository', url: 'https://github.com/acme/demo',
+        controls: [{ location: '#branches', source: 'Branches', waitForTranslation: '分支' }],
+    }]);
+
+    expect(sample.controls[0].rendered).toBe('Branches');
+});
